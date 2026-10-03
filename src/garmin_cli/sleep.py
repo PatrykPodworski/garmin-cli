@@ -1,9 +1,9 @@
 import argparse
 import re
-from collections.abc import Callable
 from datetime import timedelta
 from typing import Any
 
+from garmin_cli.client import Connect
 from garmin_cli.dates import add_date_argument, parse_date, wall_clock
 
 
@@ -11,7 +11,7 @@ def minutes(seconds: int | None) -> int | None:
     return None if seconds is None else seconds // 60
 
 
-def sleep(args: argparse.Namespace, connect: Callable[[], Any]) -> Any:
+def sleep(args: argparse.Namespace, connect: Connect) -> Any:
     day = args.night_of + timedelta(days=1) if args.night_of else args.date
     data: dict[str, Any] = connect().get_sleep_data(day.isoformat())
     night = data.get("dailySleepDTO") or {}
@@ -41,7 +41,7 @@ def sleep(args: argparse.Namespace, connect: Callable[[], Any]) -> Any:
     }
 
 
-def register(subparsers: Any) -> None:
+def register(subparsers: "argparse._SubParsersAction[argparse.ArgumentParser]") -> None:
     sleep_parser = subparsers.add_parser(
         "sleep",
         help="sleep window, sleep score and stages for one night",

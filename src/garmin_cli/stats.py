@@ -1,11 +1,11 @@
 import argparse
-from collections.abc import Callable
 from typing import Any
 
+from garmin_cli.client import Connect
 from garmin_cli.dates import add_date_argument
 
 
-def stats(args: argparse.Namespace, connect: Callable[[], Any]) -> Any:
+def stats(args: argparse.Namespace, connect: Connect) -> Any:
     day = args.date.isoformat()
     response = connect().get_stats(day)
     if args.raw:
@@ -24,7 +24,7 @@ def stats(args: argparse.Namespace, connect: Callable[[], Any]) -> Any:
     }
 
 
-def register(subparsers: Any) -> None:
+def register(subparsers: "argparse._SubParsersAction[argparse.ArgumentParser]") -> None:
     stats_parser = subparsers.add_parser(
         "stats", help="daily summary: calories, resting HR, body battery, stress"
     )

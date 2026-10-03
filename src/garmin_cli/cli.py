@@ -4,10 +4,9 @@ function, returns JSON-serializable data, and `main` prints it to stdout."""
 import argparse
 import json
 import sys
-from collections.abc import Callable
-from typing import Any
 
 from garmin_cli import activities, auth, health, sleep, stats
+from garmin_cli.client import Connect
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -23,9 +22,7 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def main(
-    argv: list[str] | None = None, connect: Callable[[], Any] = auth.connect
-) -> int:
+def main(argv: list[str] | None = None, connect: Connect = auth.connect) -> int:
     args = build_parser().parse_args(argv)
     try:
         result = args.run(args, connect)
