@@ -2,7 +2,7 @@ import json
 from typing import Any
 
 import pytest
-from conftest import run_json
+from conftest import FakeClient, run_json
 
 RUN = {
     "activityId": 101,
@@ -30,30 +30,12 @@ RIDE = {
 }
 
 
-class FakeActivities:
-    def __init__(self, activities: list[dict[str, Any]]) -> None:
-        self.activities = activities
-        self.calls: list[tuple[Any, ...]] = []
-
-    def get_activities(
-        self, start: int, limit: int, activitytype: str | None = None
-    ) -> list[dict[str, Any]]:
-        self.calls.append(("recent", start, limit, activitytype))
-        return self.activities[:limit]
-
-    def get_activities_by_date(
-        self, startdate: str, enddate: str | None, activitytype: str | None
-    ) -> list[dict[str, Any]]:
-        self.calls.append(("by_date", startdate, enddate, activitytype))
-        return self.activities
-
-
 def test_activities_compact_list(capsys: pytest.CaptureFixture[str]) -> None:
-    client = FakeActivities([RUN, RIDE])
+    client = FakeClient(get_activities=[RUN, RIDE])
 
     result = run_json(["activities"], client, capsys)
 
-    assert client.calls == [("recent", 0, 20, None)]
+    assert client.calls == [("get_activities", (0, 20), {"activitytype": None})]
     assert result == [
         {
             "id": 101,
@@ -81,7 +63,7 @@ def test_activities_compact_list(capsys: pytest.CaptureFixture[str]) -> None:
 
 
 def test_activities_filters(capsys: pytest.CaptureFixture[str]) -> None:
-    client = FakeActivities([RUN, RIDE])
+    client = FakeClient(get_activities_by_date=[RUN, RIDE])
 
     result = run_json(
         [
@@ -99,58 +81,50 @@ def test_activities_filters(capsys: pytest.CaptureFixture[str]) -> None:
         capsys,
     )
 
-    assert client.calls == [("by_date", "2026-07-01", "2026-07-05", "running")]
+    assert client.calls == [
+        ("get_activities_by_date", ("2026-07-01", "2026-07-05", "running"), {})
+    ]
     assert [a["id"] for a in result] == [101]
 
 
 def test_activities_recent_by_type(capsys: pytest.CaptureFixture[str]) -> None:
-    client = FakeActivities([])
+    client = FakeClient(get_activities=[])
 
     assert run_json(["activities", "--type", "cycling"], client, capsys) == []
-    assert client.calls == [("recent", 0, 20, "cycling")]
+    assert client.calls == [("get_activities", (0, 20), {"activitytype": "cycling"})]
 
 
 def test_activities_to_without_from(capsys: pytest.CaptureFixture[str]) -> None:
-    client = FakeActivities([RUN])
+    client = FakeClient(get_activities_by_date=[RUN])
 
     run_json(["activities", "--to", "2026-07-05"], client, capsys)
 
-    assert client.calls == [("by_date", "2000-01-01", "2026-07-05", None)]
+    assert client.calls == [
+        ("get_activities_by_date", ("2000-01-01", "2026-07-05", None), {})
+    ]
 
 
 def test_activities_raw(capsys: pytest.CaptureFixture[str]) -> None:
-    result = run_json(["activities", "--raw"], FakeActivities([RUN]), capsys)
+    result = run_json(["activities", "--raw"], FakeClient(get_activities=[RUN]), capsys)
 
     assert result == [RUN]
 
 
-class FakeActivity:
-    def __init__(self, summary: dict[str, Any]) -> None:
-        self.summary = summary
-        self.ids: list[str] = []
-
-    def get_activity(self, activity_id: str) -> dict[str, Any]:
-        self.ids.append(activity_id)
-        return self.summary
-
-    def get_activity_splits(self, activity_id: str) -> dict[str, Any]:
-        return {
-            "activityId": 101,
-            "lapDTOs": [
-                {
-                    "distance": 1000.0,
-                    "duration": 300.0,
-                    "averageSpeed": 3.3333,
-                    "averageHR": 140.0,
-                    "maxHR": 150.0,
-                    "startLatitude": 1.0,
-                    "startLongitude": 2.0,
-                }
-            ],
+SPLITS = {
+    "activityId": 101,
+    "lapDTOs": [
+        {
+            "distance": 1000.0,
+            "duration": 300.0,
+            "averageSpeed": 3.3333,
+            "averageHR": 140.0,
+            "maxHR": 150.0,
+            "startLatitude": 1.0,
+            "startLongitude": 2.0,
         }
-
-    def get_activity_hr_in_timezones(self, activity_id: str) -> list[dict[str, Any]]:
-        return [{"zoneNumber": 1, "secsInZone": 120.0, "zoneLowBoundary": 100}]
+    ],
+}
+HR_ZONES = [{"zoneNumber": 1, "secsInZone": 120.0, "zoneLowBoundary": 100}]
 
 
 DETAIL = {
@@ -167,12 +141,28 @@ DETAIL = {
 }
 
 
+def activity_client(
+    summary: dict[str, Any] = DETAIL,
+    splits: dict[str, Any] = SPLITS,
+    zones: list[dict[str, Any]] = HR_ZONES,
+) -> FakeClient:
+    return FakeClient(
+        get_activity=summary,
+        get_activity_splits=splits,
+        get_activity_hr_in_timezones=zones,
+    )
+
+
 def test_activity_detail(capsys: pytest.CaptureFixture[str]) -> None:
-    client = FakeActivity(DETAIL)
+    client = activity_client()
 
     result = run_json(["activity", "101"], client, capsys)
 
-    assert client.ids == ["101"]
+    assert client.calls == [
+        ("get_activity", ("101",), {}),
+        ("get_activity_splits", ("101",), {}),
+        ("get_activity_hr_in_timezones", ("101",), {}),
+    ]
     assert result == {
         "id": 101,
         "date": "2026-07-05T07:00:00.0",
@@ -197,16 +187,8 @@ def test_activity_detail(capsys: pytest.CaptureFixture[str]) -> None:
     )
 
 
-class NotSyncedActivity(FakeActivity):
-    def get_activity_splits(self, activity_id: str) -> dict[str, Any]:
-        return {}
-
-    def get_activity_hr_in_timezones(self, activity_id: str) -> list[dict[str, Any]]:
-        return []
-
-
 def test_activity_not_synced(capsys: pytest.CaptureFixture[str]) -> None:
-    client = NotSyncedActivity({"activityId": 101})
+    client = activity_client({"activityId": 101}, {}, [])
 
     result = run_json(["activity", "101"], client, capsys)
 
@@ -214,7 +196,7 @@ def test_activity_not_synced(capsys: pytest.CaptureFixture[str]) -> None:
 
 
 def test_activity_raw(capsys: pytest.CaptureFixture[str]) -> None:
-    client = FakeActivity(DETAIL)
+    client = activity_client()
 
     result = run_json(["activity", "101", "--raw"], client, capsys)
 

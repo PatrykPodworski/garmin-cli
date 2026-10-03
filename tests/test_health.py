@@ -3,27 +3,13 @@ from datetime import date
 from typing import Any
 
 import pytest
+from conftest import FakeClient
 
 from garmin_cli.cli import main
 
 
-class FakeHealth:
-    def __init__(self, weigh_ins: Any = None, blood_pressure: Any = None) -> None:
-        self.weigh_ins = weigh_ins
-        self.blood_pressure = blood_pressure
-        self.calls: list[tuple[str, str, str]] = []
-
-    def get_weigh_ins(self, startdate: str, enddate: str) -> Any:
-        self.calls.append(("get_weigh_ins", startdate, enddate))
-        return self.weigh_ins
-
-    def get_blood_pressure(self, startdate: str, enddate: str) -> Any:
-        self.calls.append(("get_blood_pressure", startdate, enddate))
-        return self.blood_pressure
-
-
 def run_health(
-    client: FakeHealth, capsys: pytest.CaptureFixture[str], *argv: str
+    client: FakeClient, capsys: pytest.CaptureFixture[str], *argv: str
 ) -> Any:
     assert main(list(argv), connect=lambda: client) == 0
     return json.loads(capsys.readouterr().out)
@@ -56,13 +42,13 @@ WEIGH_INS = {
 
 
 def test_weight_records_per_weigh_in(capsys: pytest.CaptureFixture[str]) -> None:
-    client = FakeHealth(weigh_ins=WEIGH_INS)
+    client = FakeClient(get_weigh_ins=WEIGH_INS)
 
     records = run_health(
         client, capsys, "weight", "--from", "2026-07-01", "--to", "2026-07-05"
     )
 
-    assert client.calls == [("get_weigh_ins", "2026-07-01", "2026-07-05")]
+    assert client.calls == [("get_weigh_ins", ("2026-07-01", "2026-07-05"), {})]
     assert records == [
         {
             "date": "2026-07-05",
@@ -84,10 +70,12 @@ def test_weight_records_per_weigh_in(capsys: pytest.CaptureFixture[str]) -> None
 
 
 def test_weight_empty_range(capsys: pytest.CaptureFixture[str]) -> None:
-    client = FakeHealth(weigh_ins={"dailyWeightSummaries": []})
+    client = FakeClient(get_weigh_ins={"dailyWeightSummaries": []})
 
     assert run_health(client, capsys, "weight", "--from", "2026-07-01") == []
-    assert client.calls == [("get_weigh_ins", "2026-07-01", date.today().isoformat())]
+    assert client.calls == [
+        ("get_weigh_ins", ("2026-07-01", date.today().isoformat()), {})
+    ]
 
 
 BLOOD_PRESSURE = {
@@ -114,13 +102,13 @@ BLOOD_PRESSURE = {
 
 
 def test_bp_records_per_reading(capsys: pytest.CaptureFixture[str]) -> None:
-    client = FakeHealth(blood_pressure=BLOOD_PRESSURE)
+    client = FakeClient(get_blood_pressure=BLOOD_PRESSURE)
 
     records = run_health(
         client, capsys, "bp", "--from", "2026-07-01", "--to", "2026-07-05"
     )
 
-    assert client.calls == [("get_blood_pressure", "2026-07-01", "2026-07-05")]
+    assert client.calls == [("get_blood_pressure", ("2026-07-01", "2026-07-05"), {})]
     assert records == [
         {
             "date": "2026-07-05",
@@ -142,8 +130,8 @@ def test_bp_records_per_reading(capsys: pytest.CaptureFixture[str]) -> None:
 
 
 def test_bp_empty_range(capsys: pytest.CaptureFixture[str]) -> None:
-    client = FakeHealth(blood_pressure={"measurementSummaries": []})
+    client = FakeClient(get_blood_pressure={"measurementSummaries": []})
 
     assert run_health(client, capsys, "bp") == []
     today = date.today().isoformat()
-    assert client.calls == [("get_blood_pressure", today, today)]
+    assert client.calls == [("get_blood_pressure", (today, today), {})]
