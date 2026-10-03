@@ -29,3 +29,5 @@ This repository is public. Never commit real Garmin data.
 - `uv run pytest`
 - `uv run ruff check`
 - `uv run ruff format --check`
+- `uv run vulture`
+- `uv run deptry src`
