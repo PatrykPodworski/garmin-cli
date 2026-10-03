@@ -24,6 +24,8 @@ This repository is public. Never commit real Garmin data.
 
 ## Checks
 
+CI (`.github/workflows/ci.yml`) runs these on every pull request and push to `main`.
+
 - `uv sync`
 - `uv run mypy`
 - `uv run pytest`
