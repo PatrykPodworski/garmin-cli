@@ -69,6 +69,25 @@ def add_date_argument(parser: argparse.ArgumentParser) -> None:
     )
 
 
+def stats(args: argparse.Namespace, client: Any) -> Any:
+    day = args.date.isoformat()
+    response = client.get_stats(day)
+    if args.raw:
+        return response
+    if response.get("totalKilocalories") is None:
+        raise RuntimeError(f"{day} is not synced (no totalKilocalories)")
+    return {
+        "date": day,
+        "total_kcal": response["totalKilocalories"],
+        "active_kcal": response.get("activeKilocalories"),
+        "bmr_kcal": response.get("bmrKilocalories"),
+        "resting_hr": response.get("restingHeartRate"),
+        "body_battery_high": response.get("bodyBatteryHighestValue"),
+        "body_battery_low": response.get("bodyBatteryLowestValue"),
+        "avg_stress": response.get("averageStressLevel"),
+    }
+
+
 def main(argv: list[str] | None = None, connect: Callable[[], Any] = connect) -> int:
     parser = argparse.ArgumentParser(
         prog="garmin", description="Read Garmin Connect data as JSON."
@@ -78,6 +97,14 @@ def main(argv: list[str] | None = None, connect: Callable[[], Any] = connect) ->
         "login",
         help="log in as GARMIN_EMAIL with the Keychain password, save tokens",
     )
+    stats_parser = subparsers.add_parser(
+        "stats", help="daily summary: calories, resting HR, body battery, stress"
+    )
+    add_date_argument(stats_parser)
+    stats_parser.add_argument(
+        "--raw", action="store_true", help="print the full get_stats response"
+    )
+    stats_parser.set_defaults(run=stats)
     args = parser.parse_args(argv)
 
     try:
