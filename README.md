@@ -148,18 +148,18 @@ garmin activities --from 2026-07-01 --to 2026-07-05
   {
     "id": 1234567890,
     "date": "2026-07-05 07:00:00",
-    "type": "running",
-    "name": "Evening Jog",
+    "name": "Morning Run",
     "duration_s": 2100.0,
     "distance_m": 7000.0,
     "avg_hr": 148.0,
     "max_hr": 171.0,
-    "avg_pace_s_per_km": 300,
     "elevation_gain_m": 45.0,
     "calories": 480.0,
     "aerobic_te": 3.0,
     "anaerobic_te": 0.8,
-    "vo2max": 48.0
+    "vo2max": 48.0,
+    "type": "running",
+    "avg_pace_s_per_km": 300
   }
 ]
 ```
@@ -179,11 +179,11 @@ garmin activity 1234567890
 {
   "id": 1234567890,
   "date": "2026-07-05T07:00:00.0",
-  "type": "running",
-  "name": "Evening Jog",
+  "name": "Morning Run",
   "duration_s": 2100.0,
-  "avg_pace_s_per_km": 300,
   "aerobic_te": 3.0,
+  "type": "running",
+  "avg_pace_s_per_km": 300,
   "laps": [
     {"duration_s": 300.0, "distance_m": 1000.0, "avg_hr": 142.0, "max_hr": 150.0, "avg_pace_s_per_km": 300}
   ],
@@ -200,12 +200,16 @@ One activity by the `id` from `garmin activities`. It has the same keys as an
 ## Raw output
 
 `stats`, `sleep`, `weight`, `bp`, `activities` and `activity` accept `--raw`. It
-prints the full Garmin response instead of the summary. `stats --raw` skips the
+prints the full Garmin response instead of the summary. `activity --raw` combines
+three responses under `summary`, `splits` and `hr_zones`. `stats --raw` skips the
 not-synced check.
 
 ## Output and exit codes
 
-Results go to stdout as JSON. Errors go to stderr as `garmin: <message>`.
+Results go to stdout as JSON. Errors go to stderr. An error with status 1 prints
+`garmin: <message>`. Bad arguments exit with status 2 and print a `usage:` line plus
+`garmin <command>: error: <message>` (`garmin: error: <message>` before a command is
+chosen).
 
 | Code | Meaning |
 |---|---|

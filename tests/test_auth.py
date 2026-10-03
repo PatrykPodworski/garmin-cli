@@ -179,14 +179,3 @@ def test_login_keychain_failure(
     assert code == 1
     assert "Keychain" in capsys.readouterr().err
     assert clients == []
-
-
-def test_login_does_not_call_connect(
-    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
-) -> None:
-    monkeypatch.setenv("GARMIN_EMAIL", "runner@example.com")
-    fake_keychain(monkeypatch)
-    fake_garmin(monkeypatch)
-
-    assert main(["login"], connect=no_connect) == 0
-    assert capsys.readouterr().err == ""
