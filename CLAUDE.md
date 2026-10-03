@@ -12,6 +12,16 @@ This repository is public. Never commit real Garmin data.
   Never print them in logs or error messages.
 - Command output pasted into issues or PRs follows the same rule.
 
+## Testing
+
+- Tests never touch the network. Pass a fake client to `main` through its
+  `connect` argument.
+- Fixtures are minimal hand-written dicts with made-up values, under the
+  anonymization rule above.
+- Each subcommand tests its happy path, its "not synced / missing field" path,
+  and `--raw` where it exists.
+- `uv run pytest` fails when branch coverage of `src/` drops below 90%.
+
 ## Checks
 
 - `uv sync`
