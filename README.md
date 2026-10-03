@@ -1,30 +1,228 @@
 # garmin-cli
 
-`garmin` — read Garmin Connect data from the terminal as JSON: activities,
-sleep (with sleep score), weight, blood pressure, daily stats.
+`garmin` reads your Garmin Connect data and prints it as JSON. Scripts, agents and
+people at a terminal can use it. It wraps
+[python-garminconnect](https://github.com/cyberjunky/python-garminconnect).
 
-Thin wrapper over [python-garminconnect](https://github.com/cyberjunky/python-garminconnect).
-Built to be called by scripts and agents.
+## Install
 
-## Sleep
+```sh
+uv tool install git+https://github.com/PatrykPodworski/garmin-cli
+```
+
+This puts `garmin` on your `PATH`. From a clone, run it with `uv run garmin` instead.
+
+## Log in
+
+Login works on macOS only, because the password comes from the Keychain.
+
+```sh
+security add-generic-password -s garmin -a you@example.com -w  # prompts for the password
+export GARMIN_EMAIL=you@example.com
+garmin login
+```
+
+`garmin login` asks for an MFA code if your account has one. It saves tokens to
+`~/.garminconnect`, or to the path in `GARMINTOKENS` if you set it. The other
+commands read those tokens. When the tokens expire, a command fails and tells you to
+run `garmin login` again.
+
+## Dates
+
+Every date argument takes `today`, `yesterday` or `YYYY-MM-DD`.
+
+## Commands
+
+### stats
+
+```sh
+garmin stats              # today
+garmin stats yesterday
+garmin stats 2026-07-05
+```
+
+```json
+{
+  "date": "2026-07-05",
+  "total_kcal": 2450,
+  "active_kcal": 620,
+  "bmr_kcal": 1830,
+  "resting_hr": 54,
+  "body_battery_high": 88,
+  "body_battery_low": 21,
+  "avg_stress": 31
+}
+```
+
+The daily summary: calories, resting heart rate, the day's highest and lowest body
+battery, and average stress. A day that has not synced yet exits with status 1.
+
+### sleep
 
 ```sh
 garmin sleep 2026-07-05             # the night you woke up from on July 5
 garmin sleep --night-of 2026-07-04  # the same night, by its lights-out date
-garmin sleep 2026-07-05 --raw       # full Garmin response, per-minute arrays included
+garmin sleep                        # last night
+```
+
+```json
+{
+  "date": "2026-07-05",
+  "start": "23:10",
+  "end": "06:45",
+  "duration_min": 410,
+  "deep_min": 85,
+  "light_min": 230,
+  "rem_min": 95,
+  "awake_min": 45,
+  "score": 81,
+  "scores": {
+    "rem_percentage": {"value": 22, "qualifier": "EXCELLENT"},
+    "stress": {"value": null, "qualifier": "FAIR"}
+  }
+}
 ```
 
 Garmin files a night under its wake-up date, so the positional date is the morning
 you woke up. `--night-of DATE` takes the date you went to bed and queries DATE+1.
-Output keys: `date` (Garmin's wake-up date), `start` and `end` (local `HH:MM`),
-`duration_min` (time asleep), `deep_min`, `light_min`, `rem_min`, `awake_min`,
-`score` (overall sleep score), and `scores` (sub-scores, each with `value` and
-`qualifier`). A night that has not synced yet exits with status 1.
+`start` and `end` are local `HH:MM`, `duration_min` is time asleep, and the `*_min`
+stages are `null` when Garmin has no value. `score` is the overall sleep score, and
+`scores` holds the sub-scores, each with `value` and `qualifier`. A night that has
+not synced yet exits with status 1.
 
-## Weight and blood pressure
+### weight
 
 ```sh
-garmin weight --from 2026-07-01 --to 2026-07-05  # one record per weigh-in
-garmin bp --from yesterday                       # --to defaults to today
-garmin weight --raw                              # full Garmin response
+garmin weight                                    # today
+garmin weight --from 2026-07-01 --to 2026-07-05
 ```
+
+```json
+[
+  {
+    "date": "2026-07-05",
+    "time": "07:35:00",
+    "weight_kg": 72.4,
+    "body_fat_pct": 19.2,
+    "muscle_mass_kg": 32.1,
+    "body_water_pct": 56.0
+  }
+]
+```
+
+One record per weigh-in, with local time. A scale that does not measure body
+composition leaves those fields `null`. A range with no weigh-ins prints `[]`.
+
+### bp
+
+```sh
+garmin bp                   # today
+garmin bp --from yesterday  # --to defaults to today
+```
+
+```json
+[
+  {
+    "date": "2026-07-05",
+    "time": "08:15:00",
+    "systolic": 120,
+    "diastolic": 78,
+    "pulse": 64,
+    "notes": null
+  }
+]
+```
+
+One record per reading, with local time. A range with no readings prints `[]`.
+
+### activities
+
+```sh
+garmin activities                                 # the 20 most recent
+garmin activities --type running --limit 5
+garmin activities --from 2026-07-01 --to 2026-07-05
+```
+
+```json
+[
+  {
+    "id": 1234567890,
+    "date": "2026-07-05 07:00:00",
+    "type": "running",
+    "name": "Evening Jog",
+    "duration_s": 2100.0,
+    "distance_m": 7000.0,
+    "avg_hr": 148.0,
+    "max_hr": 171.0,
+    "avg_pace_s_per_km": 300,
+    "elevation_gain_m": 45.0,
+    "calories": 480.0,
+    "aerobic_te": 3.0,
+    "anaerobic_te": 0.8,
+    "vo2max": 48.0
+  }
+]
+```
+
+Activities come newest first. `--type` takes a Garmin activity type such as
+`running`, `cycling` or `swimming`. `--limit` caps the count (default 20).
+Running activities get `avg_pace_s_per_km`; other types get `avg_speed_kmh`. A key
+Garmin has no value for is left out.
+
+### activity
+
+```sh
+garmin activity 1234567890
+```
+
+```json
+{
+  "id": 1234567890,
+  "date": "2026-07-05T07:00:00.0",
+  "type": "running",
+  "name": "Evening Jog",
+  "duration_s": 2100.0,
+  "avg_pace_s_per_km": 300,
+  "aerobic_te": 3.0,
+  "laps": [
+    {"duration_s": 300.0, "distance_m": 1000.0, "avg_hr": 142.0, "max_hr": 150.0, "avg_pace_s_per_km": 300}
+  ],
+  "hr_zones": [
+    {"zone": 1, "seconds": 240.0, "low_bpm": 98}
+  ]
+}
+```
+
+One activity by the `id` from `garmin activities`. It has the same keys as an
+`activities` item, plus `laps` (the same keys per lap, without `type`) and
+`hr_zones` (seconds spent in each zone and the zone's lower bound in bpm).
+
+## Raw output
+
+`stats`, `sleep`, `weight`, `bp`, `activities` and `activity` accept `--raw`. It
+prints the full Garmin response instead of the summary. `stats --raw` skips the
+not-synced check.
+
+## Output and exit codes
+
+Results go to stdout as JSON. Errors go to stderr as `garmin: <message>`.
+
+| Code | Meaning |
+|---|---|
+| 0 | Success |
+| 1 | Garmin error, data not synced yet, or login error |
+| 2 | Bad arguments |
+
+## Development
+
+```sh
+uv sync
+uv run mypy
+uv run pytest
+uv run ruff check
+uv run ruff format --check
+uv run vulture
+uv run deptry src
+```
+
+Test and fixture rules are in [CLAUDE.md](CLAUDE.md).
