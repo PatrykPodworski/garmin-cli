@@ -33,3 +33,11 @@ CI (`.github/workflows/ci.yml`) runs these on every pull request and push to `ma
 - `uv run ruff format --check`
 - `uv run vulture`
 - `uv run deptry src`
+
+## Mutation testing
+
+`.github/workflows/mutation.yml` runs `mutmut` on `main` every night, skips nights
+when `main` has not changed, and opens the issue `Nightly mutation score below
+threshold` when the score (killed / (killed + survived + timeout + suspicious))
+falls below 80%. Run it locally with `uv run mutmut run`, then `uv run mutmut results`
+lists the surviving mutants and `uv run mutmut show <name>` shows one.

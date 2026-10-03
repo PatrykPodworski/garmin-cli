@@ -54,42 +54,87 @@ def test_help_exits_0(capsys: pytest.CaptureFixture[str]) -> None:
     assert "usage: garmin" in capsys.readouterr().out
 
 
-def run_main(
-    monkeypatch: pytest.MonkeyPatch, run: Callable[[argparse.Namespace, Any], Any]
-) -> int:
-    # Stub the parser to hand `main` a subcommand with a custom `run`.
-    monkeypatch.setattr(
-        argparse.ArgumentParser,
-        "parse_args",
-        lambda self, argv=None: argparse.Namespace(command="stub", run=run),
-    )
-    client = object()
-    return main([], connect=lambda: client)
+class FakeStats:
+    def __init__(self, stats: dict[str, Any]) -> None:
+        self.stats = stats
+        self.dates: list[str] = []
+
+    def get_stats(self, cdate: str) -> dict[str, Any]:
+        self.dates.append(cdate)
+        return self.stats
 
 
-def test_main_prints_result_as_json(
-    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
-) -> None:
-    code = run_main(monkeypatch, lambda args, client: {"steps": 1234})
+SYNCED_DAY = {
+    "calendarDate": "2026-07-05",
+    "totalKilocalories": 2400.0,
+    "activeKilocalories": 600.0,
+    "bmrKilocalories": 1800.0,
+    "restingHeartRate": 55,
+    "bodyBatteryHighestValue": 90,
+    "bodyBatteryLowestValue": 20,
+    "averageStressLevel": 30,
+    "totalSteps": 1000,
+}
+
+
+def test_stats_prints_summary(capsys: pytest.CaptureFixture[str]) -> None:
+    client = FakeStats(SYNCED_DAY)
+
+    code = main(["stats", "2026-07-05"], connect=lambda: client)
 
     assert code == 0
+    assert client.dates == ["2026-07-05"]
     out = capsys.readouterr()
-    assert json.loads(out.out) == {"steps": 1234}
+    assert json.loads(out.out) == {
+        "date": "2026-07-05",
+        "total_kcal": 2400.0,
+        "active_kcal": 600.0,
+        "bmr_kcal": 1800.0,
+        "resting_hr": 55,
+        "body_battery_high": 90,
+        "body_battery_low": 20,
+        "avg_stress": 30,
+    }
     assert out.err == ""
 
 
-def test_main_reports_error_on_stderr(
-    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+def test_stats_missing_optional_fields_are_null(
+    capsys: pytest.CaptureFixture[str],
 ) -> None:
-    def fail(args: argparse.Namespace, client: Any) -> Any:
-        raise RuntimeError("not synced")
+    client = FakeStats({"totalKilocalories": 2400.0})
 
-    code = run_main(monkeypatch, fail)
+    assert main(["stats", "2026-07-05"], connect=lambda: client) == 0
+    assert json.loads(capsys.readouterr().out) == {
+        "date": "2026-07-05",
+        "total_kcal": 2400.0,
+        "active_kcal": None,
+        "bmr_kcal": None,
+        "resting_hr": None,
+        "body_battery_high": None,
+        "body_battery_low": None,
+        "avg_stress": None,
+    }
+
+
+@pytest.mark.parametrize(
+    "stats", [{"calendarDate": "2026-07-05"}, {"totalKilocalories": None}]
+)
+def test_stats_not_synced_exits_1(
+    stats: dict[str, Any], capsys: pytest.CaptureFixture[str]
+) -> None:
+    code = main(["stats", "2026-07-05"], connect=lambda: FakeStats(stats))
 
     assert code == 1
     out = capsys.readouterr()
     assert out.out == ""
-    assert out.err == "garmin: not synced\n"
+    assert out.err == "garmin: 2026-07-05 is not synced (no totalKilocalories)\n"
+
+
+def test_stats_raw_prints_full_response(capsys: pytest.CaptureFixture[str]) -> None:
+    code = main(["stats", "--raw", "2026-07-05"], connect=lambda: FakeStats(SYNCED_DAY))
+
+    assert code == 0
+    assert json.loads(capsys.readouterr().out) == SYNCED_DAY
 
 
 def test_connect_logs_in_with_tokenstore(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -362,3 +407,227 @@ def test_sleep_help_documents_both_dates(capsys: pytest.CaptureFixture[str]) -> 
     help = capsys.readouterr().out
     assert "wake-up" in help
     assert "--night-of" in help
+
+
+RUN = {
+    "activityId": 101,
+    "activityName": "Morning Run",
+    "startTimeLocal": "2026-07-05 07:00:00",
+    "activityType": {"typeKey": "trail_running"},
+    "duration": 1800.0,
+    "distance": 6000.0,
+    "averageSpeed": 4.0,
+    "averageHR": 150.0,
+    "maxHR": 175.0,
+    "elevationGain": 80.0,
+    "calories": 400.0,
+    "aerobicTrainingEffect": 3.1,
+    "anaerobicTrainingEffect": 1.2,
+    "vO2MaxValue": 50.0,
+    "polyline": "fake-polyline",
+    "startLatitude": 1.0,
+}
+RIDE = {
+    "activityId": 102,
+    "startTimeLocal": "2026-07-04 18:00:00",
+    "activityType": {"typeKey": "cycling"},
+    "averageSpeed": 7.5,
+}
+
+
+class FakeActivities:
+    def __init__(self, activities: list[dict[str, Any]]) -> None:
+        self.activities = activities
+        self.calls: list[tuple[Any, ...]] = []
+
+    def get_activities(
+        self, start: int, limit: int, activitytype: str | None = None
+    ) -> list[dict[str, Any]]:
+        self.calls.append(("recent", start, limit, activitytype))
+        return self.activities[:limit]
+
+    def get_activities_by_date(
+        self, startdate: str, enddate: str | None, activitytype: str | None
+    ) -> list[dict[str, Any]]:
+        self.calls.append(("by_date", startdate, enddate, activitytype))
+        return self.activities
+
+
+def run_json(argv: list[str], client: Any, capsys: pytest.CaptureFixture[str]) -> Any:
+    assert main(argv, connect=lambda: client) == 0
+    return json.loads(capsys.readouterr().out)
+
+
+def test_activities_compact_list(capsys: pytest.CaptureFixture[str]) -> None:
+    client = FakeActivities([RUN, RIDE])
+
+    result = run_json(["activities"], client, capsys)
+
+    assert client.calls == [("recent", 0, 20, None)]
+    assert result == [
+        {
+            "id": 101,
+            "date": "2026-07-05 07:00:00",
+            "type": "trail_running",
+            "name": "Morning Run",
+            "duration_s": 1800.0,
+            "distance_m": 6000.0,
+            "avg_hr": 150.0,
+            "max_hr": 175.0,
+            "avg_pace_s_per_km": 250,
+            "elevation_gain_m": 80.0,
+            "calories": 400.0,
+            "aerobic_te": 3.1,
+            "anaerobic_te": 1.2,
+            "vo2max": 50.0,
+        },
+        {
+            "id": 102,
+            "date": "2026-07-04 18:00:00",
+            "type": "cycling",
+            "avg_speed_kmh": 27.0,
+        },
+    ]
+
+
+def test_activities_filters(capsys: pytest.CaptureFixture[str]) -> None:
+    client = FakeActivities([RUN, RIDE])
+
+    result = run_json(
+        [
+            "activities",
+            "--from",
+            "2026-07-01",
+            "--to",
+            "2026-07-05",
+            "--type",
+            "running",
+            "--limit",
+            "1",
+        ],
+        client,
+        capsys,
+    )
+
+    assert client.calls == [("by_date", "2026-07-01", "2026-07-05", "running")]
+    assert [a["id"] for a in result] == [101]
+
+
+def test_activities_recent_by_type(capsys: pytest.CaptureFixture[str]) -> None:
+    client = FakeActivities([])
+
+    assert run_json(["activities", "--type", "cycling"], client, capsys) == []
+    assert client.calls == [("recent", 0, 20, "cycling")]
+
+
+def test_activities_to_without_from(capsys: pytest.CaptureFixture[str]) -> None:
+    client = FakeActivities([RUN])
+
+    run_json(["activities", "--to", "2026-07-05"], client, capsys)
+
+    assert client.calls == [("by_date", "2000-01-01", "2026-07-05", None)]
+
+
+def test_activities_raw(capsys: pytest.CaptureFixture[str]) -> None:
+    result = run_json(["activities", "--raw"], FakeActivities([RUN]), capsys)
+
+    assert result == [RUN]
+
+
+class FakeActivity:
+    def __init__(self, summary: dict[str, Any]) -> None:
+        self.summary = summary
+        self.ids: list[str] = []
+
+    def get_activity(self, activity_id: str) -> dict[str, Any]:
+        self.ids.append(activity_id)
+        return self.summary
+
+    def get_activity_splits(self, activity_id: str) -> dict[str, Any]:
+        return {
+            "activityId": 101,
+            "lapDTOs": [
+                {
+                    "distance": 1000.0,
+                    "duration": 300.0,
+                    "averageSpeed": 3.3333,
+                    "averageHR": 140.0,
+                    "maxHR": 150.0,
+                    "startLatitude": 1.0,
+                    "startLongitude": 2.0,
+                }
+            ],
+        }
+
+    def get_activity_hr_in_timezones(self, activity_id: str) -> list[dict[str, Any]]:
+        return [{"zoneNumber": 1, "secsInZone": 120.0, "zoneLowBoundary": 100}]
+
+
+DETAIL = {
+    "activityId": 101,
+    "activityName": "Morning Run",
+    "activityTypeDTO": {"typeKey": "running"},
+    "summaryDTO": {
+        "startTimeLocal": "2026-07-05T07:00:00.0",
+        "duration": 1800.0,
+        "averageSpeed": 4.0,
+        "trainingEffect": 3.1,
+    },
+    "geoPolylineDTO": {"polyline": [{"lat": 1.0, "lon": 2.0}]},
+}
+
+
+def test_activity_detail(capsys: pytest.CaptureFixture[str]) -> None:
+    client = FakeActivity(DETAIL)
+
+    result = run_json(["activity", "101"], client, capsys)
+
+    assert client.ids == ["101"]
+    assert result == {
+        "id": 101,
+        "date": "2026-07-05T07:00:00.0",
+        "type": "running",
+        "name": "Morning Run",
+        "duration_s": 1800.0,
+        "avg_pace_s_per_km": 250,
+        "aerobic_te": 3.1,
+        "laps": [
+            {
+                "duration_s": 300.0,
+                "distance_m": 1000.0,
+                "avg_hr": 140.0,
+                "max_hr": 150.0,
+                "avg_pace_s_per_km": 300,
+            }
+        ],
+        "hr_zones": [{"zone": 1, "seconds": 120.0, "low_bpm": 100}],
+    }
+    assert not {"polyline", "geoPolylineDTO", "startLatitude"} & set(
+        json.dumps(result).replace('"', " ").split()
+    )
+
+
+class NotSyncedActivity(FakeActivity):
+    def get_activity_splits(self, activity_id: str) -> dict[str, Any]:
+        return {}
+
+    def get_activity_hr_in_timezones(self, activity_id: str) -> list[dict[str, Any]]:
+        return []
+
+
+def test_activity_not_synced(capsys: pytest.CaptureFixture[str]) -> None:
+    client = NotSyncedActivity({"activityId": 101})
+
+    result = run_json(["activity", "101"], client, capsys)
+
+    assert result == {"id": 101, "laps": [], "hr_zones": []}
+
+
+def test_activity_raw(capsys: pytest.CaptureFixture[str]) -> None:
+    client = FakeActivity(DETAIL)
+
+    result = run_json(["activity", "101", "--raw"], client, capsys)
+
+    assert result["summary"] == DETAIL
+    assert result["splits"]["lapDTOs"][0]["startLatitude"] == 1.0
+    assert result["hr_zones"][0]["zoneNumber"] == 1
