@@ -1,5 +1,7 @@
 # garmin-cli
 
+Tracker: GitHub Issues
+
 This repository is public. Never commit real Garmin data.
 
 - Test fixtures and examples copied from real Garmin responses must be anonymized
@@ -9,3 +11,9 @@ This repository is public. Never commit real Garmin data.
 - Tokens (`~/.garminconnect`) and passwords (macOS Keychain) stay outside the repo.
   Never print them in logs or error messages.
 - Command output pasted into issues or PRs follows the same rule.
+
+## Checks
+
+- `uv sync`
+- `uv run mypy`
+- `uv run pytest`
