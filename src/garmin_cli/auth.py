@@ -6,6 +6,7 @@ from typing import cast
 from garminconnect import Garmin, GarminConnectAuthenticationError
 
 from garmin_cli.client import Connect, GarminClient
+from garmin_cli.errors import GarminCliError
 
 
 def tokenstore() -> str:
@@ -17,7 +18,7 @@ def connect() -> GarminClient:
     try:
         client.login(tokenstore())
     except GarminConnectAuthenticationError:
-        raise RuntimeError("no valid saved tokens, run 'garmin login'") from None
+        raise GarminCliError("no valid saved tokens, run 'garmin login'") from None
     # garminconnect ships no py.typed, so `Garmin` is Any to mypy.
     return cast(GarminClient, client)
 
@@ -25,14 +26,14 @@ def connect() -> GarminClient:
 def login(_args: argparse.Namespace, _connect: Connect) -> dict[str, str]:
     email = os.environ.get("GARMIN_EMAIL")
     if not email:
-        raise RuntimeError("set GARMIN_EMAIL to your Garmin account email")
+        raise GarminCliError("set GARMIN_EMAIL to your Garmin account email")
     keychain = subprocess.run(
         ["security", "find-generic-password", "-s", "garmin", "-a", email, "-w"],
         capture_output=True,
         text=True,
     )
     if keychain.returncode != 0:
-        raise RuntimeError(
+        raise GarminCliError(
             f"no Keychain password for service 'garmin', account {email}"
         )
     password = keychain.stdout.rstrip("\n")

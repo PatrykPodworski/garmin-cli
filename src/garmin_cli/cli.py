@@ -5,8 +5,15 @@ import argparse
 import json
 import sys
 
+from garminconnect import (
+    GarminConnectAuthenticationError,
+    GarminConnectConnectionError,
+    GarminConnectTooManyRequestsError,
+)
+
 from garmin_cli import activities, auth, health, sleep, stats
 from garmin_cli.client import Connect
+from garmin_cli.errors import GarminCliError
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -26,7 +33,14 @@ def main(argv: list[str] | None = None, connect: Connect = auth.connect) -> int:
     args = build_parser().parse_args(argv)
     try:
         result = args.run(args, connect)
-    except Exception as error:
+    # OSError covers network failures: requests exceptions subclass it.
+    except (
+        GarminCliError,
+        GarminConnectAuthenticationError,
+        GarminConnectConnectionError,
+        GarminConnectTooManyRequestsError,
+        OSError,
+    ) as error:
         print(f"garmin: {error}", file=sys.stderr)
         return 1
     print(json.dumps(result, indent=2))
