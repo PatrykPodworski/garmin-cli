@@ -4,6 +4,7 @@ returns JSON-serializable data, and `main` prints it to stdout."""
 import argparse
 import json
 import os
+import re
 import subprocess
 import sys
 from collections.abc import Callable
@@ -59,11 +60,11 @@ def parse_date(value: str) -> date:
         ) from None
 
 
-def add_date_argument(parser: argparse.ArgumentParser) -> None:
+def add_date_argument(parser: argparse._ActionsContainer) -> None:
     parser.add_argument(
         "date",
         nargs="?",
-        default="today",
+        default=date.today(),
         type=parse_date,
         help="today | yesterday | YYYY-MM-DD (default: today)",
     )
@@ -122,6 +123,41 @@ def blood_pressure(args: argparse.Namespace, client: Any) -> list[dict[str, Any]
                 }
             )
     return records
+
+
+def local_time(timestamp_ms: int) -> str:
+    # Garmin "Local" timestamps hold the wall-clock time encoded as UTC.
+    return datetime.fromtimestamp(timestamp_ms / 1000, UTC).strftime("%H:%M")
+
+
+def sleep(args: argparse.Namespace, client: Any) -> Any:
+    day = args.night_of + timedelta(days=1) if args.night_of else args.date
+    data: dict[str, Any] = client.get_sleep_data(day.isoformat())
+    night = data.get("dailySleepDTO") or {}
+    if not night.get("sleepTimeSeconds"):
+        raise RuntimeError(f"no sleep data for {day}, not synced yet")
+    if args.raw:
+        return data
+    scores = dict(night.get("sleepScores") or {})
+    overall = scores.pop("overall", None) or {}
+    return {
+        "date": night["calendarDate"],
+        "start": local_time(night["sleepStartTimestampLocal"]),
+        "end": local_time(night["sleepEndTimestampLocal"]),
+        "duration_min": night["sleepTimeSeconds"] // 60,
+        "deep_min": night["deepSleepSeconds"] // 60,
+        "light_min": night["lightSleepSeconds"] // 60,
+        "rem_min": night["remSleepSeconds"] // 60,
+        "awake_min": night["awakeSleepSeconds"] // 60,
+        "score": overall.get("value"),
+        "scores": {
+            re.sub(r"(?<!^)(?=[A-Z])", "_", name).lower(): {
+                "value": score.get("value"),
+                "qualifier": score.get("qualifierKey"),
+            }
+            for name, score in scores.items()
+        },
+    }
 
 
 # Output name -> Garmin key. A list item and a detail `summaryDTO` name the
@@ -231,6 +267,26 @@ def main(argv: list[str] | None = None, connect: Callable[[], Any] = connect) ->
     bp_parser = subparsers.add_parser("bp", help="blood pressure in a date range")
     add_range_arguments(bp_parser)
     bp_parser.set_defaults(run=blood_pressure)
+    sleep_parser = subparsers.add_parser(
+        "sleep",
+        help="sleep window, sleep score and stages for one night",
+        description="Garmin files a night under its wake-up date: `date` is the "
+        "morning you woke up. --night-of DATE takes the lights-out date instead "
+        "and shows the night that started on DATE.",
+    )
+    night = sleep_parser.add_mutually_exclusive_group()
+    add_date_argument(night)
+    night.add_argument(
+        "--night-of",
+        type=parse_date,
+        metavar="DATE",
+        help="lights-out date: the night that started on DATE",
+    )
+    sleep_parser.add_argument(
+        "--raw", action="store_true", help="print the full Garmin response"
+    )
+    sleep_parser.set_defaults(run=sleep)
+
     activities_parser = subparsers.add_parser(
         "activities", help="recent activities, newest first"
     )
