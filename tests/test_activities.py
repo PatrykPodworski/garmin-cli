@@ -28,7 +28,7 @@ RIDE = {
     "activityId": 102,
     "startTimeLocal": "2026-07-04 18:00:00",
     "activityType": {"typeKey": "cycling"},
-    "averageSpeed": 7.5,
+    "averageSpeed": 7.03,
 }
 
 
@@ -59,7 +59,7 @@ def test_activities_compact_list(capsys: pytest.CaptureFixture[str]) -> None:
             "id": 102,
             "date": "2026-07-04 18:00:00",
             "type": "cycling",
-            "avg_speed_kmh": 27.0,
+            "avg_speed_kmh": 25.3,
         },
     ]
 
@@ -114,6 +114,12 @@ def test_activities_from_without_to(capsys: pytest.CaptureFixture[str]) -> None:
     assert client.calls == [("get_activities_by_date", ("2026-07-01", None, None), {})]
 
 
+def test_activities_without_type(capsys: pytest.CaptureFixture[str]) -> None:
+    client = FakeClient(get_activities=[{"activityId": 103}])
+
+    assert run_json(["activities"], client, capsys) == [{"id": 103}]
+
+
 @pytest.mark.parametrize("limit", ["0", "-1"])
 def test_activities_limit_must_be_positive(
     limit: str, capsys: pytest.CaptureFixture[str]
@@ -122,7 +128,10 @@ def test_activities_limit_must_be_positive(
         main(["activities", "--limit", limit], connect=FakeClient)
 
     assert exit.value.code == 2
-    assert "positive" in capsys.readouterr().err
+    assert (
+        f"error: argument --limit: expected a positive integer, got {limit!r}\n"
+        in capsys.readouterr().err
+    )
 
 
 def test_activities_raw(capsys: pytest.CaptureFixture[str]) -> None:
@@ -137,7 +146,7 @@ SPLITS = {
         {
             "distance": 1000.0,
             "duration": 300.0,
-            "averageSpeed": 3.3333,
+            "averageSpeed": 3.34,
             "averageHR": 140.0,
             "maxHR": 150.0,
             "startLatitude": 1.0,
@@ -198,7 +207,7 @@ def test_activity_detail(capsys: pytest.CaptureFixture[str]) -> None:
                 "distance_m": 1000.0,
                 "avg_hr": 140.0,
                 "max_hr": 150.0,
-                "avg_pace_s_per_km": 300,
+                "avg_pace_s_per_km": 299,
             }
         ],
         "hr_zones": [{"zone": 1, "seconds": 120.0, "low_bpm": 100}],

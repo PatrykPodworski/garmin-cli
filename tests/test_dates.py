@@ -37,4 +37,7 @@ def test_invalid_date_exits_2_with_message(
         parse(value)
 
     assert exit.value.code == 2
-    assert value in capsys.readouterr().err
+    assert (
+        "error: argument date: expected today, yesterday or YYYY-MM-DD, "
+        f"got {value!r}\n" in capsys.readouterr().err
+    )

@@ -1,6 +1,7 @@
 from typing import Any
 
 import pytest
+from conftest import FakeClient
 from garminconnect import (
     GarminConnectAuthenticationError,
     GarminConnectConnectionError,
@@ -25,6 +26,13 @@ def test_help_exits_0(capsys: pytest.CaptureFixture[str]) -> None:
 
     assert exit.value.code == 0
     assert "usage: garmin" in capsys.readouterr().out
+
+
+def test_prints_json_indented_by_2(capsys: pytest.CaptureFixture[str]) -> None:
+    client = FakeClient(get_stats={"totalSteps": [1]})
+
+    assert main(["stats", "--raw"], connect=lambda: client) == 0
+    assert capsys.readouterr().out == '{\n  "totalSteps": [\n    1\n  ]\n}\n'
 
 
 @pytest.mark.parametrize(

@@ -10,7 +10,7 @@ NIGHT: dict[str, Any] = {
     "dailySleepDTO": {
         "calendarDate": "2026-07-05",
         "sleepTimeSeconds": 24300,
-        "deepSleepSeconds": 5400,
+        "deepSleepSeconds": 5430,
         "lightSleepSeconds": 13200,
         "remSleepSeconds": 5700,
         "awakeSleepSeconds": 3600,
@@ -74,6 +74,17 @@ def test_sleep_missing_stage_is_null(
     assert json.loads(capsys.readouterr().out)[output_key] is None
 
 
+def test_sleep_without_overall_score_is_null(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    night = {**NIGHT["dailySleepDTO"], "sleepScores": {}}
+    client = FakeClient(get_sleep_data={"dailySleepDTO": night})
+
+    assert run_sleep(client, "2026-07-05") == 0
+    result = json.loads(capsys.readouterr().out)
+    assert (result["score"], result["scores"]) == (None, {})
+
+
 def test_sleep_night_of_queries_the_wake_up_date(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
@@ -101,7 +112,7 @@ def test_sleep_not_synced_exits_nonzero(capsys: pytest.CaptureFixture[str]) -> N
     assert run_sleep(client, "2026-07-05") == 1
     out = capsys.readouterr()
     assert out.out == ""
-    assert "no sleep data for 2026-07-05" in out.err
+    assert out.err == "garmin: no sleep data for 2026-07-05, not synced yet\n"
 
 
 def test_sleep_raw_prints_the_full_response(
