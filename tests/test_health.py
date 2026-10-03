@@ -78,6 +78,24 @@ def test_weight_empty_range(capsys: pytest.CaptureFixture[str]) -> None:
     ]
 
 
+@pytest.mark.parametrize(
+    ("command", "method", "response"),
+    [
+        ("weight", "get_weigh_ins", {}),
+        ("weight", "get_weigh_ins", {"dailyWeightSummaries": [{}]}),
+        ("bp", "get_blood_pressure", {}),
+        ("bp", "get_blood_pressure", {"measurementSummaries": [{}]}),
+    ],
+)
+def test_missing_lists_are_empty(
+    command: str,
+    method: str,
+    response: dict[str, Any],
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    assert run_health(FakeClient(**{method: response}), capsys, command) == []
+
+
 BLOOD_PRESSURE = {
     "measurementSummaries": [
         {

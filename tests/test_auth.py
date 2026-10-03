@@ -44,8 +44,10 @@ def test_connect_without_tokens_says_to_log_in(
 
     monkeypatch.setattr(auth, "Garmin", NoTokens)
 
-    with pytest.raises(GarminCliError, match="run 'garmin login'"):
+    with pytest.raises(GarminCliError) as error:
         auth.connect()
+
+    assert str(error.value) == "no valid saved tokens, run 'garmin login'"
 
 
 class FakeGarmin:
@@ -79,7 +81,8 @@ def fake_keychain(
 ) -> list[list[str]]:
     calls: list[list[str]] = []
 
-    def run(args: list[str], **_kwargs: Any) -> subprocess.CompletedProcess[str]:
+    def run(args: list[str], **kwargs: Any) -> subprocess.CompletedProcess[str]:
+        assert kwargs == {"capture_output": True, "text": True}
         calls.append(args)
         return subprocess.CompletedProcess(args, returncode, stdout, "not found")
 
@@ -149,10 +152,31 @@ def test_login_prompts_for_mfa_code(
     monkeypatch.setenv("GARMIN_EMAIL", "runner@example.com")
     fake_keychain(monkeypatch)
     clients = fake_garmin(monkeypatch, needs_mfa=True)
-    monkeypatch.setattr("builtins.input", lambda _prompt: "123456")
+    prompts: list[str] = []
+
+    def answer(prompt: str) -> str:
+        prompts.append(prompt)
+        return "123456"
+
+    monkeypatch.setattr("builtins.input", answer)
 
     assert main(["login"], connect=no_connect) == 0
+    assert prompts == ["MFA code: "]
     assert clients[0].mfa_code == "123456"
+
+
+# Keychain passwords may end in any character; only the newline `security`
+# appends is stripped.
+@pytest.mark.parametrize("password", ["fake-pass ", "fake-passX"])
+def test_login_keeps_trailing_password_characters(
+    password: str, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setenv("GARMIN_EMAIL", "runner@example.com")
+    fake_keychain(monkeypatch, stdout=password + "\n")
+    clients = fake_garmin(monkeypatch)
+
+    assert main(["login"], connect=no_connect) == 0
+    assert clients[0].password == password
 
 
 def test_login_without_email_names_the_variable(
@@ -164,7 +188,10 @@ def test_login_without_email_names_the_variable(
     code = main(["login"], connect=no_connect)
 
     assert code == 1
-    assert "GARMIN_EMAIL" in capsys.readouterr().err
+    assert (
+        capsys.readouterr().err
+        == "garmin: set GARMIN_EMAIL to your Garmin account email\n"
+    )
     assert calls == []
 
 
@@ -178,5 +205,28 @@ def test_login_keychain_failure(
     code = main(["login"], connect=no_connect)
 
     assert code == 1
-    assert "Keychain" in capsys.readouterr().err
+    assert capsys.readouterr().err == (
+        "garmin: no Keychain password for service 'garmin', "
+        "account runner@example.com\n"
+    )
     assert clients == []
+
+
+def test_login_rejected_credentials(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setenv("GARMIN_EMAIL", "runner@example.com")
+    fake_keychain(monkeypatch)
+
+    class RejectingGarmin(FakeGarmin):
+        def login(self, tokenstore: str) -> None:
+            raise GarminConnectAuthenticationError("401 Unauthorized")
+
+    monkeypatch.setattr(auth, "Garmin", RejectingGarmin)
+
+    code = main(["login"], connect=no_connect)
+
+    assert code == 1
+    out = capsys.readouterr()
+    assert out.out == ""
+    assert out.err == "garmin: 401 Unauthorized\n"
