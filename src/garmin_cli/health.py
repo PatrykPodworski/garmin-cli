@@ -1,6 +1,6 @@
 import argparse
 from collections.abc import Callable
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from typing import Any
 
 from garmin_cli.dates import add_range_arguments
@@ -10,10 +10,10 @@ def kilograms(grams: float | None) -> float | None:
     return None if grams is None else grams / 1000
 
 
-def weight(
-    args: argparse.Namespace, connect: Callable[[], Any]
-) -> list[dict[str, Any]]:
+def weight(args: argparse.Namespace, connect: Callable[[], Any]) -> Any:
     data = connect().get_weigh_ins(args.start.isoformat(), args.end.isoformat())
+    if args.raw:
+        return data
     records = []
     for day in data.get("dailyWeightSummaries", []):
         for metric in day.get("allWeightMetrics", []):
@@ -32,10 +32,10 @@ def weight(
     return records
 
 
-def blood_pressure(
-    args: argparse.Namespace, connect: Callable[[], Any]
-) -> list[dict[str, Any]]:
+def blood_pressure(args: argparse.Namespace, connect: Callable[[], Any]) -> Any:
     data = connect().get_blood_pressure(args.start.isoformat(), args.end.isoformat())
+    if args.raw:
+        return data
     records = []
     for day in data.get("measurementSummaries", []):
         for reading in day.get("measurements", []):
@@ -55,8 +55,10 @@ def blood_pressure(
 
 def register(subparsers: Any) -> None:
     weight_parser = subparsers.add_parser("weight", help="weigh-ins in a date range")
-    add_range_arguments(weight_parser)
-    weight_parser.set_defaults(run=weight)
     bp_parser = subparsers.add_parser("bp", help="blood pressure in a date range")
-    add_range_arguments(bp_parser)
-    bp_parser.set_defaults(run=blood_pressure)
+    for parser, run in ((weight_parser, weight), (bp_parser, blood_pressure)):
+        add_range_arguments(parser, date.today())
+        parser.add_argument(
+            "--raw", action="store_true", help="print the full Garmin response"
+        )
+        parser.set_defaults(run=run)

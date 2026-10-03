@@ -20,3 +20,11 @@ Output keys: `date` (Garmin's wake-up date), `start` and `end` (local `HH:MM`),
 `duration_min` (time asleep), `deep_min`, `light_min`, `rem_min`, `awake_min`,
 `score` (overall sleep score), and `scores` (sub-scores, each with `value` and
 `qualifier`). A night that has not synced yet exits with status 1.
+
+## Weight and blood pressure
+
+```sh
+garmin weight --from 2026-07-01 --to 2026-07-05  # one record per weigh-in
+garmin bp --from yesterday                       # --to defaults to today
+garmin weight --raw                              # full Garmin response
+```
