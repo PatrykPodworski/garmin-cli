@@ -2,19 +2,9 @@ import json
 from typing import Any
 
 import pytest
+from conftest import FakeClient
 
 from garmin_cli.cli import main
-
-
-class FakeSleepClient:
-    def __init__(self, response: dict[str, Any]) -> None:
-        self.response = response
-        self.dates: list[str] = []
-
-    def get_sleep_data(self, cdate: str) -> dict[str, Any]:
-        self.dates.append(cdate)
-        return self.response
-
 
 NIGHT: dict[str, Any] = {
     "dailySleepDTO": {
@@ -39,15 +29,15 @@ NIGHT: dict[str, Any] = {
 }
 
 
-def run_sleep(client: FakeSleepClient, *argv: str) -> int:
+def run_sleep(client: FakeClient, *argv: str) -> int:
     return main(["sleep", *argv], connect=lambda: client)
 
 
 def test_sleep_summarizes_the_night(capsys: pytest.CaptureFixture[str]) -> None:
-    client = FakeSleepClient(NIGHT)
+    client = FakeClient(get_sleep_data=NIGHT)
 
     assert run_sleep(client, "2026-07-05") == 0
-    assert client.dates == ["2026-07-05"]
+    assert client.calls == [("get_sleep_data", ("2026-07-05",), {})]
     assert json.loads(capsys.readouterr().out) == {
         "date": "2026-07-05",
         "start": "23:10",
@@ -68,22 +58,26 @@ def test_sleep_summarizes_the_night(capsys: pytest.CaptureFixture[str]) -> None:
 def test_sleep_night_of_queries_the_wake_up_date(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    client = FakeSleepClient(NIGHT)
+    client = FakeClient(get_sleep_data=NIGHT)
 
     assert run_sleep(client, "--night-of", "2026-07-04") == 0
-    assert client.dates == ["2026-07-05"]
+    assert client.calls == [("get_sleep_data", ("2026-07-05",), {})]
     assert json.loads(capsys.readouterr().out)["start"] == "23:10"
 
 
 def test_sleep_rejects_date_with_night_of(capsys: pytest.CaptureFixture[str]) -> None:
     with pytest.raises(SystemExit) as exit:
-        run_sleep(FakeSleepClient(NIGHT), "2026-07-05", "--night-of", "2026-07-04")
+        run_sleep(
+            FakeClient(get_sleep_data=NIGHT), "2026-07-05", "--night-of", "2026-07-04"
+        )
 
     assert exit.value.code == 2
 
 
 def test_sleep_not_synced_exits_nonzero(capsys: pytest.CaptureFixture[str]) -> None:
-    client = FakeSleepClient({"dailySleepDTO": {"calendarDate": "2026-07-05"}})
+    client = FakeClient(
+        get_sleep_data={"dailySleepDTO": {"calendarDate": "2026-07-05"}}
+    )
 
     assert run_sleep(client, "2026-07-05") == 1
     out = capsys.readouterr()
@@ -94,7 +88,7 @@ def test_sleep_not_synced_exits_nonzero(capsys: pytest.CaptureFixture[str]) -> N
 def test_sleep_raw_prints_the_full_response(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    assert run_sleep(FakeSleepClient(NIGHT), "2026-07-05", "--raw") == 0
+    assert run_sleep(FakeClient(get_sleep_data=NIGHT), "2026-07-05", "--raw") == 0
     assert json.loads(capsys.readouterr().out) == NIGHT
 
 
