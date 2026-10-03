@@ -55,12 +55,23 @@ def test_sleep_summarizes_the_night(capsys: pytest.CaptureFixture[str]) -> None:
     }
 
 
-def test_sleep_missing_stage_is_null(capsys: pytest.CaptureFixture[str]) -> None:
-    night = {k: v for k, v in NIGHT["dailySleepDTO"].items() if k != "deepSleepSeconds"}
+@pytest.mark.parametrize(
+    ("garmin_key", "output_key"),
+    [
+        ("deepSleepSeconds", "deep_min"),
+        ("lightSleepSeconds", "light_min"),
+        ("remSleepSeconds", "rem_min"),
+        ("awakeSleepSeconds", "awake_min"),
+    ],
+)
+def test_sleep_missing_stage_is_null(
+    garmin_key: str, output_key: str, capsys: pytest.CaptureFixture[str]
+) -> None:
+    night = {k: v for k, v in NIGHT["dailySleepDTO"].items() if k != garmin_key}
     client = FakeClient(get_sleep_data={"dailySleepDTO": night})
 
     assert run_sleep(client, "2026-07-05") == 0
-    assert json.loads(capsys.readouterr().out)["deep_min"] is None
+    assert json.loads(capsys.readouterr().out)[output_key] is None
 
 
 def test_sleep_night_of_queries_the_wake_up_date(
