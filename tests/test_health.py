@@ -135,3 +135,18 @@ def test_bp_empty_range(capsys: pytest.CaptureFixture[str]) -> None:
     assert run_health(client, capsys, "bp") == []
     today = date.today().isoformat()
     assert client.calls == [("get_blood_pressure", (today, today), {})]
+
+
+@pytest.mark.parametrize(
+    ("command", "method", "response"),
+    [
+        ("weight", "get_weigh_ins", WEIGH_INS),
+        ("bp", "get_blood_pressure", BLOOD_PRESSURE),
+    ],
+)
+def test_raw_prints_full_response(
+    command: str, method: str, response: Any, capsys: pytest.CaptureFixture[str]
+) -> None:
+    client = FakeClient(**{method: response})
+
+    assert run_health(client, capsys, command, "--raw") == response

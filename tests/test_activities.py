@@ -4,6 +4,8 @@ from typing import Any
 import pytest
 from conftest import FakeClient, run_json
 
+from garmin_cli.cli import main
+
 RUN = {
     "activityId": 101,
     "activityName": "Morning Run",
@@ -102,6 +104,25 @@ def test_activities_to_without_from(capsys: pytest.CaptureFixture[str]) -> None:
     assert client.calls == [
         ("get_activities_by_date", ("2000-01-01", "2026-07-05", None), {})
     ]
+
+
+def test_activities_from_without_to(capsys: pytest.CaptureFixture[str]) -> None:
+    client = FakeClient(get_activities_by_date=[RUN])
+
+    run_json(["activities", "--from", "2026-07-01"], client, capsys)
+
+    assert client.calls == [("get_activities_by_date", ("2026-07-01", None, None), {})]
+
+
+@pytest.mark.parametrize("limit", ["0", "-1"])
+def test_activities_limit_must_be_positive(
+    limit: str, capsys: pytest.CaptureFixture[str]
+) -> None:
+    with pytest.raises(SystemExit) as exit:
+        main(["activities", "--limit", limit], connect=FakeClient)
+
+    assert exit.value.code == 2
+    assert "positive" in capsys.readouterr().err
 
 
 def test_activities_raw(capsys: pytest.CaptureFixture[str]) -> None:
