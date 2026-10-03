@@ -23,6 +23,17 @@ jobs:
       - run: uv run pytest
       - run: uv run vulture
       - run: uv run deptry src
+      - name: mutmut (score >= 80%)
+        run: |
+          uv run mutmut run
+          uv run mutmut export-cicd-stats
+          uv run python -c '
+          import json, sys
+          s = json.load(open("mutants/mutmut-cicd-stats.json"))
+          score = 100 * s["killed"] / (s["killed"] + s["survived"] + s["timeout"] + s["suspicious"])
+          print(f"mutation score {score:.1f}%")
+          sys.exit(score < 80)
+          '
 
   secrets:
     runs-on: ubuntu-latest
