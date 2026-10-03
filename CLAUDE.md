@@ -17,3 +17,5 @@ This repository is public. Never commit real Garmin data.
 - `uv sync`
 - `uv run mypy`
 - `uv run pytest`
+- `uv run ruff check`
+- `uv run ruff format --check`
