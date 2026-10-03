@@ -207,7 +207,8 @@ not-synced check.
 ## Output and exit codes
 
 Results go to stdout as JSON. Errors go to stderr. An error with status 1 prints
-`garmin: <message>`. Bad arguments exit with status 2 and print a `usage:` line plus
+`garmin: <message>`. A bug in garmin-cli exits with status 1 and prints a Python
+traceback. Bad arguments exit with status 2 and print a `usage:` line plus
 `garmin <command>: error: <message>` (`garmin: error: <message>` before a command is
 chosen).
 

@@ -3,6 +3,7 @@ from typing import Any
 
 from garmin_cli.client import Connect
 from garmin_cli.dates import add_date_argument
+from garmin_cli.errors import GarminCliError
 
 
 def stats(args: argparse.Namespace, connect: Connect) -> Any:
@@ -11,7 +12,7 @@ def stats(args: argparse.Namespace, connect: Connect) -> Any:
     if args.raw:
         return response
     if response.get("totalKilocalories") is None:
-        raise RuntimeError(f"{day} is not synced (no totalKilocalories)")
+        raise GarminCliError(f"{day} is not synced (no totalKilocalories)")
     return {
         "date": day,
         "total_kcal": response["totalKilocalories"],

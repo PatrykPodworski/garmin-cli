@@ -8,6 +8,7 @@ from garminconnect import GarminConnectAuthenticationError
 
 from garmin_cli import auth
 from garmin_cli.cli import main
+from garmin_cli.errors import GarminCliError
 
 
 def test_connect_logs_in_with_tokenstore(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -43,7 +44,7 @@ def test_connect_without_tokens_says_to_log_in(
 
     monkeypatch.setattr(auth, "Garmin", NoTokens)
 
-    with pytest.raises(RuntimeError, match="run 'garmin login'"):
+    with pytest.raises(GarminCliError, match="run 'garmin login'"):
         auth.connect()
 
 

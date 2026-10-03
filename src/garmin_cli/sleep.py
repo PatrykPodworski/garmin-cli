@@ -5,6 +5,7 @@ from typing import Any
 
 from garmin_cli.client import Connect
 from garmin_cli.dates import add_date_argument, parse_date, wall_clock
+from garmin_cli.errors import GarminCliError
 
 
 def minutes(seconds: int | None) -> int | None:
@@ -16,7 +17,7 @@ def sleep(args: argparse.Namespace, connect: Connect) -> Any:
     data: dict[str, Any] = connect().get_sleep_data(day.isoformat())
     night = data.get("dailySleepDTO") or {}
     if not night.get("sleepTimeSeconds"):
-        raise RuntimeError(f"no sleep data for {day}, not synced yet")
+        raise GarminCliError(f"no sleep data for {day}, not synced yet")
     if args.raw:
         return data
     scores = dict(night.get("sleepScores") or {})
