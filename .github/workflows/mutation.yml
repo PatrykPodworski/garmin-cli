@@ -1,0 +1,59 @@
+name: Mutation
+
+on:
+  schedule:
+    - cron: "0 2 * * *"
+  workflow_dispatch:
+
+jobs:
+  mutation:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@v5
+      # The cache is keyed by commit and saved only after a passing run, so an exact hit
+      # means main has not changed since the last passing run and the job can stop here.
+      - id: cache
+        uses: actions/cache@v4
+        with:
+          path: mutants
+          key: mutmut-${{ github.sha }}
+          restore-keys: mutmut-
+      - if: steps.cache.outputs.cache-hit != 'true'
+        uses: astral-sh/setup-uv@v10.2.0
+        with:
+          enable-cache: true
+      - if: steps.cache.outputs.cache-hit != 'true'
+        run: uv sync --locked
+      - if: steps.cache.outputs.cache-hit != 'true'
+        # Explicit bash adds pipefail, so tee does not hide a failing score.
+        shell: bash
+        run: |
+          uv run mutmut run
+          uv run mutmut export-cicd-stats
+          uv run python -c '
+          import json, sys
+          s = json.load(open("mutants/mutmut-cicd-stats.json"))
+          score = 100 * s["killed"] / (s["killed"] + s["survived"] + s["timeout"] + s["suspicious"])
+          print(f"mutation score {score:.1f}%")
+          if score < 80:
+              print(f"mutation score {score:.1f}% under breaking threshold 80%")
+              sys.exit(1)
+          ' | tee mutation.log
+      # Only a score below the threshold opens an issue; other failures show up as a red
+      # run. One open issue at a time: later failures comment on it.
+      - if: failure() && hashFiles('mutation.log') != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          line=$(grep -m1 "under breaking threshold" mutation.log) || exit 0
+          body="$line on $GITHUB_SHA. Run: $RUN_URL"
+          open=$(gh issue list --state open --search "in:title Nightly mutation score below threshold" --json number -q '.[0].number')
+          if [ -n "$open" ]; then
+            gh issue comment "$open" --body "$body"
+          else
+            gh issue create --title "Nightly mutation score below threshold" --body "$body"
+          fi
