@@ -64,7 +64,7 @@ def add_date_argument(parser: argparse._ActionsContainer) -> None:
     parser.add_argument(
         "date",
         nargs="?",
-        default="today",
+        default=date.today(),
         type=parse_date,
         help="today | yesterday | YYYY-MM-DD (default: today)",
     )
