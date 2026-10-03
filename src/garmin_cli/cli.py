@@ -3,20 +3,47 @@ returns JSON-serializable data, and `main` prints it to stdout."""
 
 import argparse
 import json
+import os
+import subprocess
 import sys
 from collections.abc import Callable
 from datetime import date, datetime, timedelta
 from typing import Any
 
-from garminconnect import Garmin
+from garminconnect import Garmin, GarminConnectAuthenticationError
 
-TOKENSTORE = "~/.garminconnect"
+
+def tokenstore() -> str:
+    return os.environ.get("GARMINTOKENS", "~/.garminconnect")
 
 
 def connect() -> Any:
     client = Garmin()
-    client.login(TOKENSTORE)
+    try:
+        client.login(tokenstore())
+    except GarminConnectAuthenticationError:
+        raise RuntimeError("no valid saved tokens, run 'garmin login'") from None
     return client
+
+
+def login() -> dict[str, str]:
+    email = os.environ.get("GARMIN_EMAIL")
+    if not email:
+        raise RuntimeError("set GARMIN_EMAIL to your Garmin account email")
+    keychain = subprocess.run(
+        ["security", "find-generic-password", "-s", "garmin", "-a", email, "-w"],
+        capture_output=True,
+        text=True,
+    )
+    if keychain.returncode != 0:
+        raise RuntimeError(
+            f"no Keychain password for service 'garmin', account {email}"
+        )
+    password = keychain.stdout.rstrip("\n")
+    client = Garmin(email, password, prompt_mfa=lambda: input("MFA code: "))
+    path = tokenstore()
+    client.login(path)
+    return {"tokenstore": path}
 
 
 def parse_date(value: str) -> date:
@@ -46,11 +73,18 @@ def main(argv: list[str] | None = None, connect: Callable[[], Any] = connect) ->
     parser = argparse.ArgumentParser(
         prog="garmin", description="Read Garmin Connect data as JSON."
     )
-    parser.add_subparsers(dest="command", required=True)
+    subparsers = parser.add_subparsers(dest="command", required=True)
+    subparsers.add_parser(
+        "login",
+        help="log in as GARMIN_EMAIL with the Keychain password, save tokens",
+    )
     args = parser.parse_args(argv)
 
     try:
-        result = args.run(args, connect())
+        if args.command == "login":
+            result: Any = login()
+        else:
+            result = args.run(args, connect())
     except Exception as error:
         print(f"garmin: {error}", file=sys.stderr)
         return 1
