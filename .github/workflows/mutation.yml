@@ -20,7 +20,6 @@ jobs:
         with:
           path: mutants
           key: mutmut-${{ github.sha }}
-          restore-keys: mutmut-
       - if: steps.cache.outputs.cache-hit != 'true'
         uses: astral-sh/setup-uv@v10.2.0
         with:
@@ -47,13 +46,15 @@ jobs:
       - if: failure() && hashFiles('mutation.log') != ''
         env:
           GH_TOKEN: ${{ github.token }}
+          TITLE: Nightly mutation score below threshold
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           line=$(grep -m1 "under breaking threshold" mutation.log) || exit 0
           body="$line on $GITHUB_SHA. Run: $RUN_URL"
-          open=$(gh issue list --state open --search "in:title Nightly mutation score below threshold" --json number -q '.[0].number')
+          open=$(gh issue list --state open --search "in:title \"$TITLE\"" --json number,title \
+            -q "map(select(.title == \"$TITLE\")) | .[0].number // empty")
           if [ -n "$open" ]; then
             gh issue comment "$open" --body "$body"
           else
-            gh issue create --title "Nightly mutation score below threshold" --body "$body"
+            gh issue create --title "$TITLE" --body "$body"
           fi
