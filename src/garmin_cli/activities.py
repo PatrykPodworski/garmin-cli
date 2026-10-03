@@ -1,8 +1,8 @@
 import argparse
-from collections.abc import Callable
 from datetime import date
 from typing import Any
 
+from garmin_cli.client import Connect
 from garmin_cli.dates import add_range_arguments
 
 # Output name -> Garmin key. A list item and a detail `summaryDTO` name the
@@ -47,7 +47,7 @@ def summarize(raw: dict[str, Any], type_key: str | None) -> dict[str, Any]:
     return summary
 
 
-def activities(args: argparse.Namespace, connect: Callable[[], Any]) -> Any:
+def activities(args: argparse.Namespace, connect: Connect) -> Any:
     client = connect()
     if args.start or args.end:
         # Garmin needs a start date; 2000-01-01 predates any Garmin Connect upload.
@@ -63,7 +63,7 @@ def activities(args: argparse.Namespace, connect: Callable[[], Any]) -> Any:
     return [summarize(a, a.get("activityType", {}).get("typeKey")) for a in found]
 
 
-def activity(args: argparse.Namespace, connect: Callable[[], Any]) -> Any:
+def activity(args: argparse.Namespace, connect: Connect) -> Any:
     client = connect()
     summary = client.get_activity(args.id)
     splits = client.get_activity_splits(args.id)
@@ -87,7 +87,7 @@ def activity(args: argparse.Namespace, connect: Callable[[], Any]) -> Any:
     return result
 
 
-def register(subparsers: Any) -> None:
+def register(subparsers: "argparse._SubParsersAction[argparse.ArgumentParser]") -> None:
     activities_parser = subparsers.add_parser(
         "activities", help="recent activities, newest first"
     )

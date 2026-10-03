@@ -1,26 +1,28 @@
 import argparse
 import os
 import subprocess
-from collections.abc import Callable
-from typing import Any
+from typing import cast
 
 from garminconnect import Garmin, GarminConnectAuthenticationError
+
+from garmin_cli.client import Connect, GarminClient
 
 
 def tokenstore() -> str:
     return os.environ.get("GARMINTOKENS", "~/.garminconnect")
 
 
-def connect() -> Any:
+def connect() -> GarminClient:
     client = Garmin()
     try:
         client.login(tokenstore())
     except GarminConnectAuthenticationError:
         raise RuntimeError("no valid saved tokens, run 'garmin login'") from None
-    return client
+    # garminconnect ships no py.typed, so `Garmin` is Any to mypy.
+    return cast(GarminClient, client)
 
 
-def login(_args: argparse.Namespace, _connect: Callable[[], Any]) -> dict[str, str]:
+def login(_args: argparse.Namespace, _connect: Connect) -> dict[str, str]:
     email = os.environ.get("GARMIN_EMAIL")
     if not email:
         raise RuntimeError("set GARMIN_EMAIL to your Garmin account email")
@@ -40,7 +42,7 @@ def login(_args: argparse.Namespace, _connect: Callable[[], Any]) -> dict[str, s
     return {"tokenstore": path}
 
 
-def register(subparsers: Any) -> None:
+def register(subparsers: "argparse._SubParsersAction[argparse.ArgumentParser]") -> None:
     login_parser = subparsers.add_parser(
         "login",
         help="log in as GARMIN_EMAIL with the Keychain password, save tokens",
