@@ -1,15 +1,14 @@
 import argparse
 import re
 from collections.abc import Callable
-from datetime import UTC, datetime, timedelta
+from datetime import timedelta
 from typing import Any
 
-from garmin_cli.dates import add_date_argument, parse_date
+from garmin_cli.dates import add_date_argument, parse_date, wall_clock
 
 
-def local_time(timestamp_ms: int) -> str:
-    # Garmin "Local" timestamps hold the wall-clock time encoded as UTC.
-    return datetime.fromtimestamp(timestamp_ms / 1000, UTC).strftime("%H:%M")
+def minutes(seconds: int | None) -> int | None:
+    return None if seconds is None else seconds // 60
 
 
 def sleep(args: argparse.Namespace, connect: Callable[[], Any]) -> Any:
@@ -24,13 +23,13 @@ def sleep(args: argparse.Namespace, connect: Callable[[], Any]) -> Any:
     overall = scores.pop("overall", None) or {}
     return {
         "date": night["calendarDate"],
-        "start": local_time(night["sleepStartTimestampLocal"]),
-        "end": local_time(night["sleepEndTimestampLocal"]),
-        "duration_min": night["sleepTimeSeconds"] // 60,
-        "deep_min": night["deepSleepSeconds"] // 60,
-        "light_min": night["lightSleepSeconds"] // 60,
-        "rem_min": night["remSleepSeconds"] // 60,
-        "awake_min": night["awakeSleepSeconds"] // 60,
+        "start": wall_clock(night["sleepStartTimestampLocal"]).strftime("%H:%M"),
+        "end": wall_clock(night["sleepEndTimestampLocal"]).strftime("%H:%M"),
+        "duration_min": minutes(night["sleepTimeSeconds"]),
+        "deep_min": minutes(night.get("deepSleepSeconds")),
+        "light_min": minutes(night.get("lightSleepSeconds")),
+        "rem_min": minutes(night.get("remSleepSeconds")),
+        "awake_min": minutes(night.get("awakeSleepSeconds")),
         "score": overall.get("value"),
         "scores": {
             re.sub(r"(?<!^)(?=[A-Z])", "_", name).lower(): {

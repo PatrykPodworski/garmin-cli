@@ -1,5 +1,5 @@
 import argparse
-from datetime import date, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 
 
 def parse_date(value: str) -> date:
@@ -13,6 +13,11 @@ def parse_date(value: str) -> date:
         raise argparse.ArgumentTypeError(
             f"expected today, yesterday or YYYY-MM-DD, got {value!r}"
         ) from None
+
+
+def wall_clock(timestamp_ms: int) -> datetime:
+    # Garmin "Local" timestamps hold the wall-clock time encoded as UTC.
+    return datetime.fromtimestamp(timestamp_ms / 1000, UTC)
 
 
 def add_date_argument(parser: argparse._ActionsContainer) -> None:

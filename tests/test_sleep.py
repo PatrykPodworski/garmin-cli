@@ -55,6 +55,14 @@ def test_sleep_summarizes_the_night(capsys: pytest.CaptureFixture[str]) -> None:
     }
 
 
+def test_sleep_missing_stage_is_null(capsys: pytest.CaptureFixture[str]) -> None:
+    night = {k: v for k, v in NIGHT["dailySleepDTO"].items() if k != "deepSleepSeconds"}
+    client = FakeClient(get_sleep_data={"dailySleepDTO": night})
+
+    assert run_sleep(client, "2026-07-05") == 0
+    assert json.loads(capsys.readouterr().out)["deep_min"] is None
+
+
 def test_sleep_night_of_queries_the_wake_up_date(
     capsys: pytest.CaptureFixture[str],
 ) -> None:

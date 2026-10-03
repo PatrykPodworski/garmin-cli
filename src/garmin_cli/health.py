@@ -1,9 +1,8 @@
 import argparse
 from collections.abc import Callable
-from datetime import UTC, datetime
 from typing import Any
 
-from garmin_cli.dates import add_range_arguments
+from garmin_cli.dates import add_range_arguments, wall_clock
 
 
 def kilograms(grams: float | None) -> float | None:
@@ -17,12 +16,10 @@ def weight(
     records = []
     for day in data.get("dailyWeightSummaries", []):
         for metric in day.get("allWeightMetrics", []):
-            # Garmin encodes the local wall-clock time as if it were UTC.
-            local = datetime.fromtimestamp(metric["date"] / 1000, UTC)
             records.append(
                 {
                     "date": metric["calendarDate"],
-                    "time": local.strftime("%H:%M:%S"),
+                    "time": wall_clock(metric["date"]).strftime("%H:%M:%S"),
                     "weight_kg": kilograms(metric.get("weight")),
                     "body_fat_pct": metric.get("bodyFat"),
                     "muscle_mass_kg": kilograms(metric.get("muscleMass")),
