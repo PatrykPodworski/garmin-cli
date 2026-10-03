@@ -1,0 +1,37 @@
+import argparse
+from datetime import date, datetime, timedelta
+
+
+def parse_date(value: str) -> date:
+    if value == "today":
+        return date.today()
+    if value == "yesterday":
+        return date.today() - timedelta(days=1)
+    try:
+        return datetime.strptime(value, "%Y-%m-%d").date()
+    except ValueError:
+        raise argparse.ArgumentTypeError(
+            f"expected today, yesterday or YYYY-MM-DD, got {value!r}"
+        ) from None
+
+
+def add_date_argument(parser: argparse._ActionsContainer) -> None:
+    parser.add_argument(
+        "date",
+        nargs="?",
+        default=date.today(),
+        type=parse_date,
+        help="today | yesterday | YYYY-MM-DD (default: today)",
+    )
+
+
+def add_range_arguments(parser: argparse.ArgumentParser) -> None:
+    for flag, dest in (("--from", "start"), ("--to", "end")):
+        parser.add_argument(
+            flag,
+            dest=dest,
+            metavar="DATE",
+            default="today",
+            type=parse_date,
+            help="today | yesterday | YYYY-MM-DD (default: today)",
+        )
