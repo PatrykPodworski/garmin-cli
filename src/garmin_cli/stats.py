@@ -30,6 +30,6 @@ def register(subparsers: Any) -> None:
     )
     add_date_argument(stats_parser)
     stats_parser.add_argument(
-        "--raw", action="store_true", help="print the full get_stats response"
+        "--raw", action="store_true", help="print the full Garmin response"
     )
     stats_parser.set_defaults(run=stats)

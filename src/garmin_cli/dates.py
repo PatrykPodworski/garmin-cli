@@ -30,13 +30,11 @@ def add_date_argument(parser: argparse._ActionsContainer) -> None:
     )
 
 
-def add_range_arguments(parser: argparse.ArgumentParser) -> None:
+def add_range_arguments(parser: argparse.ArgumentParser, default: date | None) -> None:
+    help = "today | yesterday | YYYY-MM-DD"
+    if default:
+        help += " (default: today)"
     for flag, dest in (("--from", "start"), ("--to", "end")):
         parser.add_argument(
-            flag,
-            dest=dest,
-            metavar="DATE",
-            default="today",
-            type=parse_date,
-            help="today | yesterday | YYYY-MM-DD (default: today)",
+            flag, dest=dest, metavar="DATE", default=default, type=parse_date, help=help
         )

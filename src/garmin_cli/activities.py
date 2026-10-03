@@ -3,7 +3,7 @@ from collections.abc import Callable
 from datetime import date
 from typing import Any
 
-from garmin_cli.dates import parse_date
+from garmin_cli.dates import add_range_arguments
 
 # Output name -> Garmin key. A list item and a detail `summaryDTO` name the
 # aerobic training effect differently, so either key fills `aerobic_te`.
@@ -21,6 +21,13 @@ FIELDS = {
     "anaerobic_te": ("anaerobicTrainingEffect",),
     "vo2max": ("vO2MaxValue",),
 }
+
+
+def positive_int(value: str) -> int:
+    number = int(value)
+    if number < 1:
+        raise argparse.ArgumentTypeError(f"expected a positive integer, got {value!r}")
+    return number
 
 
 def summarize(raw: dict[str, Any], type_key: str | None) -> dict[str, Any]:
@@ -84,15 +91,23 @@ def register(subparsers: Any) -> None:
     activities_parser = subparsers.add_parser(
         "activities", help="recent activities, newest first"
     )
-    activities_parser.add_argument("--from", dest="start", type=parse_date)
-    activities_parser.add_argument("--to", dest="end", type=parse_date)
+    add_range_arguments(activities_parser, None)
     activities_parser.add_argument("--type", help="running, cycling, swimming, ...")
-    activities_parser.add_argument("--limit", type=int, default=20)
-    activities_parser.add_argument("--raw", action="store_true")
+    activities_parser.add_argument(
+        "--limit",
+        type=positive_int,
+        default=20,
+        help="max activities to return (default: 20)",
+    )
+    activities_parser.add_argument(
+        "--raw", action="store_true", help="print the full Garmin response"
+    )
     activities_parser.set_defaults(run=activities)
     activity_parser = subparsers.add_parser(
         "activity", help="one activity with laps and HR zones"
     )
     activity_parser.add_argument("id")
-    activity_parser.add_argument("--raw", action="store_true")
+    activity_parser.add_argument(
+        "--raw", action="store_true", help="print the full Garmin response"
+    )
     activity_parser.set_defaults(run=activity)
