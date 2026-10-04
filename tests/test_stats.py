@@ -70,8 +70,8 @@ def test_stats_not_synced_exits_1(
     out = capsys.readouterr()
     assert out.out == ""
     assert out.err == (
-        "garmin: 2026-07-05 is not synced (no totalKilocalories). "
-        "Sync your watch and try again.\n"
+        "garmin: No daily summary for 2026-07-05 yet. "
+        "Sync your watch with Garmin Connect, then try again.\n"
     )
 
 

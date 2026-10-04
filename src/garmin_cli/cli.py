@@ -4,12 +4,12 @@ function, returns JSON-serializable data, and `main` prints it to stdout."""
 import argparse
 import difflib
 import json
+import os
 import re
 import sys
 from typing import Any, NoReturn, cast
 
 from garminconnect import (
-    GarminConnectAuthenticationError,
     GarminConnectConnectionError,
     GarminConnectTooManyRequestsError,
 )
@@ -19,6 +19,7 @@ from garmin_cli.client import Connect
 from garmin_cli.errors import GarminCliError
 
 REQUIRED = "the following arguments are required: "
+ISSUES = "https://github.com/PatrykPodworski/garmin-cli/issues"
 
 
 class CliParser(argparse.ArgumentParser):
@@ -94,6 +95,11 @@ def round_floats(value: Any) -> Any:
 
 def build_parser() -> CliParser:
     parser = CliParser(prog="garmin", description="Read Garmin Connect data as JSON.")
+    parser.add_argument(
+        "--debug",
+        action="store_true",
+        help="show the full traceback for unexpected errors",
+    )
     # Subparsers are CliParsers too; the cast matches the invariant type the
     # `register` functions take.
     subparsers = cast(
@@ -116,17 +122,34 @@ def main(argv: list[str] | None = None, connect: Connect = auth.connect) -> int:
         parser.reject(args.command, extras[0])
     try:
         result = args.run(args, connect)
+    except GarminCliError as error:
+        message = str(error)
+    except GarminConnectTooManyRequestsError:
+        message = (
+            "Garmin is rate-limiting requests from this machine. "
+            "Wait a few minutes and try again."
+        )
     # OSError covers network failures: requests exceptions subclass it.
-    except (
-        GarminCliError,
-        GarminConnectAuthenticationError,
-        GarminConnectConnectionError,
-        GarminConnectTooManyRequestsError,
-        OSError,
-    ) as error:
-        print(f"garmin: {error}", file=sys.stderr)
-        return 1
-    if not getattr(args, "raw", False):
-        result = round_floats(result)
-    print(json.dumps(result, indent=2))
-    return 0
+    except (GarminConnectConnectionError, OSError) as error:
+        reason = f"{type(error).__name__}: {str(error).partition(chr(10))[0]}"
+        message = (
+            f"Could not reach Garmin Connect ({reason[:100]}). "
+            "Check your internet connection and try again."
+        )
+    except Exception as error:
+        if args.debug:
+            raise
+        message = (
+            f"Unexpected error ({type(error).__name__}: {error}). "
+            f"Rerun with --debug and report it at {ISSUES}."
+        )
+    else:
+        if not getattr(args, "raw", False):
+            result = round_floats(result)
+        print(json.dumps(result, indent=2))
+        return 0
+    # GARMINTOKENS may hold the token JSON itself, and error texts may quote it.
+    if tokens := os.environ.get("GARMINTOKENS"):
+        message = message.replace(tokens, "GARMINTOKENS")
+    print(f"garmin: {message}", file=sys.stderr)
+    return 1

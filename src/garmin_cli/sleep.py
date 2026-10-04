@@ -18,7 +18,9 @@ def sleep(args: argparse.Namespace, connect: Connect) -> Any:
     night = data.get("dailySleepDTO") or {}
     if not night.get("sleepTimeSeconds"):
         raise GarminCliError(
-            f"No sleep data for {day}.", "Sync your watch and try again."
+            f"No sleep data for the night ending {day} yet.",
+            f"Sync your watch with Garmin Connect, or use --night-of if {day} is "
+            "the night you went to bed.",
         )
     if args.raw:
         return data

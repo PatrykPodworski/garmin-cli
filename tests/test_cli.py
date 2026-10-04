@@ -13,7 +13,7 @@ from garmin_cli.errors import GarminCliError
 
 
 class RaisingClient:
-    def __init__(self, error: Exception) -> None:
+    def __init__(self, error: BaseException) -> None:
         self.error = error
 
     def get_stats(self, _day: str) -> Any:
@@ -135,30 +135,100 @@ def test_raw_help_on_every_data_command(
     assert "--raw print the full Garmin response" in help_text
 
 
+NETWORK = "Check your internet connection and try again."
+UNEXPECTED = (
+    "Rerun with --debug and report it at "
+    "https://github.com/PatrykPodworski/garmin-cli/issues."
+)
+
+
 @pytest.mark.parametrize(
-    "error",
+    ("error", "message"),
     [
-        GarminCliError("Not synced.", "Sync it."),
-        GarminConnectAuthenticationError("bad credentials"),
-        GarminConnectConnectionError("server error"),
-        GarminConnectTooManyRequestsError("rate limited"),
-        ConnectionError("connection refused"),
+        (GarminCliError("Not synced.", "Sync it."), "Not synced. Sync it."),
+        (
+            GarminConnectTooManyRequestsError("Rate limit exceeded: 429"),
+            "Garmin is rate-limiting requests from this machine. "
+            "Wait a few minutes and try again.",
+        ),
+        (
+            GarminConnectConnectionError("Stats server error (503)\nbody"),
+            "Could not reach Garmin Connect (GarminConnectConnectionError: "
+            f"Stats server error (503)). {NETWORK}",
+        ),
+        (
+            ConnectionError("connection refused"),
+            f"Could not reach Garmin Connect (ConnectionError: connection refused). "
+            f"{NETWORK}",
+        ),
+        (
+            TimeoutError("x" * 200),
+            f"Could not reach Garmin Connect (TimeoutError: {'x' * 86}). {NETWORK}",
+        ),
+        (
+            KeyError("x"),
+            f"Unexpected error (KeyError: 'x'). {UNEXPECTED}",
+        ),
+        (
+            GarminConnectAuthenticationError("Authentication failed: 401"),
+            "Unexpected error (GarminConnectAuthenticationError: Authentication "
+            f"failed: 401). {UNEXPECTED}",
+        ),
     ],
 )
-def test_expected_error_exits_1_with_message(
-    error: Exception, capsys: pytest.CaptureFixture[str]
+def test_error_exits_1_with_message(
+    error: Exception, message: str, capsys: pytest.CaptureFixture[str]
 ) -> None:
     client: Any = RaisingClient(error)
 
     assert main(["stats"], connect=lambda: client) == 1
-    assert capsys.readouterr().err == f"garmin: {error}\n"
+    out = capsys.readouterr()
+    assert out.err == f"garmin: {message}\n"
+    assert out.out == ""
 
 
-def test_bug_propagates_with_traceback() -> None:
-    client: Any = RaisingClient(KeyError("totalKilocalories"))
+def test_debug_reraises_unexpected_error() -> None:
+    client: Any = RaisingClient(KeyError("x"))
 
     with pytest.raises(KeyError):
+        main(["--debug", "stats"], connect=lambda: client)
+
+
+def test_debug_keeps_expected_error_message(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    client: Any = RaisingClient(GarminCliError("Not synced.", "Sync it."))
+
+    assert main(["--debug", "stats"], connect=lambda: client) == 1
+    assert capsys.readouterr().err == "garmin: Not synced. Sync it.\n"
+
+
+def test_keyboard_interrupt_is_not_caught() -> None:
+    client: Any = RaisingClient(KeyboardInterrupt())
+
+    with pytest.raises(KeyboardInterrupt):
         main(["stats"], connect=lambda: client)
+
+
+def test_error_message_hides_garmintokens(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setenv("GARMINTOKENS", '{"fake": "token"}')
+    client: Any = RaisingClient(ValueError('bad tokens {"fake": "token"}'))
+
+    assert main(["stats"], connect=lambda: client) == 1
+    assert capsys.readouterr().err == (
+        "garmin: Unexpected error (ValueError: bad tokens GARMINTOKENS). "
+        f"{UNEXPECTED}\n"
+    )
+
+
+def test_debug_help(capsys: pytest.CaptureFixture[str]) -> None:
+    with pytest.raises(SystemExit):
+        main(["--help"])
+
+    help_text = " ".join(capsys.readouterr().out.split())
+    assert "--debug show the full traceback for unexpected errors" in help_text
 
 
 def test_round_floats_walks_dicts_and_lists() -> None:
