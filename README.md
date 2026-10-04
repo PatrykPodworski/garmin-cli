@@ -224,7 +224,7 @@ prints a Python traceback.
 | Code | Meaning | Example |
 |---|---|---|
 | 0 | Success | JSON on stdout |
-| 1 | Garmin error, data not synced yet, or login error | `garmin: No valid saved tokens. Run 'garmin login'.` |
+| 1 | Garmin error, data not synced yet, or login error | `garmin: Not logged in: no valid saved login in ~/.garminconnect. Run 'garmin login'.` |
 | 2 | Bad arguments | `garmin: Unknown command 'slep'. Did you mean 'sleep'?` |
 
 ## Development

@@ -58,6 +58,29 @@ def test_connect_without_tokens_says_to_log_in(
     )
 
 
+# garminconnect accepts the token JSON itself in GARMINTOKENS.
+INLINE_TOKENS = ' {"di_token": "fake-token"}'
+
+
+def test_connect_without_tokens_hides_inline_tokens(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("GARMINTOKENS", INLINE_TOKENS)
+
+    class ExpiredTokens:
+        def login(self, tokenstore: str) -> None:
+            raise GarminConnectAuthenticationError("expired")
+
+    monkeypatch.setattr(auth, "Garmin", ExpiredTokens)
+
+    with pytest.raises(GarminCliError) as error:
+        auth.connect()
+
+    assert str(error.value) == (
+        "Not logged in: no valid saved login in GARMINTOKENS. Run 'garmin login'."
+    )
+
+
 class FakeGarmin:
     def __init__(
         self,
@@ -254,6 +277,28 @@ def test_login_without_security_tool(
         "'garmin login' reads the password from the macOS Keychain, which is not "
         "available here. Log in on a Mac and copy /tokens to this machine, or set "
         "GARMINTOKENS to a copied token folder.",
+    )
+
+
+def test_login_without_security_tool_hides_inline_tokens(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setenv("GARMIN_EMAIL", "runner@example.com")
+    monkeypatch.setenv("GARMINTOKENS", INLINE_TOKENS)
+
+    def run(args: list[str], **kwargs: Any) -> subprocess.CompletedProcess[str]:
+        raise FileNotFoundError(2, "No such file or directory", "security")
+
+    monkeypatch.setattr(subprocess, "run", run)
+
+    code = main(["login"], connect=no_connect)
+
+    assert_login_error(
+        capsys,
+        code,
+        "'garmin login' reads the password from the macOS Keychain, which is not "
+        "available here. Log in on a Mac and copy GARMINTOKENS to this machine, or "
+        "set GARMINTOKENS to a copied token folder.",
     )
 
 

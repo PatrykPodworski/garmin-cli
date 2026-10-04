@@ -18,6 +18,13 @@ def tokenstore() -> str:
     return os.environ.get("GARMINTOKENS", "~/.garminconnect")
 
 
+def tokenstore_name() -> str:
+    """The tokenstore for messages. GARMINTOKENS may hold the token JSON itself,
+    which must not be printed."""
+    path = tokenstore()
+    return "GARMINTOKENS" if path.strip().startswith("{") else path
+
+
 def connect() -> GarminClient:
     client = Garmin()
     try:
@@ -25,7 +32,7 @@ def connect() -> GarminClient:
     except GarminConnectAuthenticationError:
         # Garmin reports missing and expired tokens the same way.
         raise GarminCliError(
-            f"Not logged in: no valid saved login in {tokenstore()}.",
+            f"Not logged in: no valid saved login in {tokenstore_name()}.",
             "Run 'garmin login'.",
         ) from None
     # garminconnect ships no py.typed, so `Garmin` is Any to mypy.
@@ -64,8 +71,8 @@ def login(_args: argparse.Namespace, _connect: Connect) -> dict[str, str]:
         raise GarminCliError(
             "'garmin login' reads the password from the macOS Keychain, which is "
             "not available here.",
-            f"Log in on a Mac and copy {path} to this machine, or set GARMINTOKENS "
-            "to a copied token folder.",
+            f"Log in on a Mac and copy {tokenstore_name()} to this machine, or set "
+            "GARMINTOKENS to a copied token folder.",
         ) from None
     if keychain.returncode != 0:
         raise GarminCliError(
@@ -88,7 +95,9 @@ def login(_args: argparse.Namespace, _connect: Connect) -> dict[str, str]:
             "Wait about an hour, then run 'garmin login' again.",
         ) from None
     except GarminConnectConnectionError as error:
-        # garminconnect wraps what prompt_mfa raises in a connection error.
+        # garminconnect wraps what prompt_mfa raises in a connection error, but
+        # turns it into an auth error when its text contains "authentication",
+        # "401", "unauthorized" or "login failed"; the MFA message avoids them.
         if isinstance(error.__cause__, GarminCliError):
             raise error.__cause__ from None
         raise
