@@ -161,10 +161,11 @@ def test_invalid_choice_on_subcommand_generic_message(
         parser.parse_args(["demo", "--unit", "st"])
 
     assert exit.value.code == 2
-    assert capsys.readouterr().err == (
-        "garmin: Argument --unit: invalid choice: 'st' (choose from kg, lb). "
-        "Run 'garmin demo --help'.\n"
-    )
+    # Python 3.12 patch releases differ in how they quote the choices.
+    err = capsys.readouterr().err
+    assert err.startswith("garmin: Argument --unit: invalid choice: 'st' (choose from")
+    assert err.endswith("). Run 'garmin demo --help'.\n")
+    assert err.count("\n") == 1
 
 
 def test_prints_json_indented_by_2(capsys: pytest.CaptureFixture[str]) -> None:
