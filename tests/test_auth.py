@@ -4,7 +4,11 @@ from collections.abc import Callable
 from typing import Any
 
 import pytest
-from garminconnect import GarminConnectAuthenticationError
+from garminconnect import (
+    GarminConnectAuthenticationError,
+    GarminConnectConnectionError,
+    GarminConnectTooManyRequestsError,
+)
 
 from garmin_cli import auth
 from garmin_cli.cli import main
@@ -38,6 +42,8 @@ def test_connect_uses_garmintokens(monkeypatch: pytest.MonkeyPatch) -> None:
 def test_connect_without_tokens_says_to_log_in(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    monkeypatch.setenv("GARMINTOKENS", "/tokens")
+
     class NoTokens:
         def login(self, tokenstore: str) -> None:
             raise GarminConnectAuthenticationError("Username and password are required")
@@ -47,7 +53,9 @@ def test_connect_without_tokens_says_to_log_in(
     with pytest.raises(GarminCliError) as error:
         auth.connect()
 
-    assert str(error.value) == "No valid saved tokens. Run 'garmin login'."
+    assert str(error.value) == (
+        "Not logged in: no valid saved login in /tokens. Run 'garmin login'."
+    )
 
 
 class FakeGarmin:
@@ -69,7 +77,11 @@ class FakeGarmin:
         self.tokenstore = tokenstore
         if self.needs_mfa:
             assert self.prompt_mfa is not None
-            self.mfa_code = self.prompt_mfa()
+            # garminconnect wraps whatever prompt_mfa raises.
+            try:
+                self.mfa_code = self.prompt_mfa()
+            except Exception as error:
+                raise GarminConnectConnectionError(f"Login failed: {error}") from error
 
 
 def no_connect() -> Any:
@@ -179,6 +191,14 @@ def test_login_keeps_trailing_password_characters(
     assert clients[0].password == password
 
 
+def assert_login_error(capsys: pytest.CaptureFixture[str], code: int, err: str) -> None:
+    assert code == 1
+    out = capsys.readouterr()
+    assert out.out == ""
+    assert out.err == f"garmin: {err}\n"
+    assert "fake-pass" not in out.err
+
+
 def test_login_without_email_names_the_variable(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -187,15 +207,16 @@ def test_login_without_email_names_the_variable(
 
     code = main(["login"], connect=no_connect)
 
-    assert code == 1
-    assert (
-        capsys.readouterr().err
-        == "garmin: GARMIN_EMAIL is not set. Set it to your Garmin account email.\n"
+    assert_login_error(
+        capsys,
+        code,
+        "GARMIN_EMAIL is not set. Run 'export GARMIN_EMAIL=you@example.com' "
+        "with your Garmin account email.",
     )
     assert calls == []
 
 
-def test_login_keychain_failure(
+def test_login_without_keychain_entry(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
     monkeypatch.setenv("GARMIN_EMAIL", "runner@example.com")
@@ -204,12 +225,44 @@ def test_login_keychain_failure(
 
     code = main(["login"], connect=no_connect)
 
-    assert code == 1
-    assert capsys.readouterr().err == (
-        "garmin: No Keychain password for service 'garmin', "
-        "account runner@example.com. Add it as the README shows.\n"
+    assert_login_error(
+        capsys,
+        code,
+        "No Keychain password for account runner@example.com (service 'garmin'). "
+        "Add it with 'security add-generic-password -s garmin -a "
+        "runner@example.com -w'.",
     )
     assert clients == []
+
+
+def test_login_without_security_tool(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setenv("GARMIN_EMAIL", "runner@example.com")
+    monkeypatch.setenv("GARMINTOKENS", "/tokens")
+
+    def run(args: list[str], **kwargs: Any) -> subprocess.CompletedProcess[str]:
+        raise FileNotFoundError(2, "No such file or directory", "security")
+
+    monkeypatch.setattr(subprocess, "run", run)
+
+    code = main(["login"], connect=no_connect)
+
+    assert_login_error(
+        capsys,
+        code,
+        "'garmin login' reads the password from the macOS Keychain, which is not "
+        "available here. Log in on a Mac and copy /tokens to this machine, or set "
+        "GARMINTOKENS to a copied token folder.",
+    )
+
+
+def failing_garmin(monkeypatch: pytest.MonkeyPatch, error: Exception) -> None:
+    class FailingGarmin(FakeGarmin):
+        def login(self, tokenstore: str) -> None:
+            raise error
+
+    monkeypatch.setattr(auth, "Garmin", FailingGarmin)
 
 
 def test_login_rejected_credentials(
@@ -217,16 +270,74 @@ def test_login_rejected_credentials(
 ) -> None:
     monkeypatch.setenv("GARMIN_EMAIL", "runner@example.com")
     fake_keychain(monkeypatch)
-
-    class RejectingGarmin(FakeGarmin):
-        def login(self, tokenstore: str) -> None:
-            raise GarminConnectAuthenticationError("401 Unauthorized")
-
-    monkeypatch.setattr(auth, "Garmin", RejectingGarmin)
+    failing_garmin(monkeypatch, GarminConnectAuthenticationError("401 fake-pass"))
 
     code = main(["login"], connect=no_connect)
 
-    assert code == 1
-    out = capsys.readouterr()
-    assert out.out == ""
-    assert out.err == "garmin: 401 Unauthorized\n"
+    assert_login_error(
+        capsys,
+        code,
+        "Garmin rejected the login for runner@example.com. Check the Keychain "
+        "password for service 'garmin' and run 'garmin login' again.",
+    )
+
+
+def test_login_rate_limited(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setenv("GARMIN_EMAIL", "runner@example.com")
+    fake_keychain(monkeypatch)
+    failing_garmin(monkeypatch, GarminConnectTooManyRequestsError("429"))
+
+    code = main(["login"], connect=no_connect)
+
+    assert_login_error(
+        capsys,
+        code,
+        "Garmin is rate-limiting logins from this machine. Wait about an hour, "
+        "then run 'garmin login' again.",
+    )
+
+
+def test_login_connection_error_passes_through(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setenv("GARMIN_EMAIL", "runner@example.com")
+    fake_keychain(monkeypatch)
+    failing_garmin(monkeypatch, GarminConnectConnectionError("Login failed: timeout"))
+
+    code = main(["login"], connect=no_connect)
+
+    assert_login_error(capsys, code, "Login failed: timeout")
+
+
+def mfa_answer(monkeypatch: pytest.MonkeyPatch, answer: Callable[[str], str]) -> None:
+    monkeypatch.setenv("GARMIN_EMAIL", "runner@example.com")
+    fake_keychain(monkeypatch)
+    fake_garmin(monkeypatch, needs_mfa=True)
+    monkeypatch.setattr("builtins.input", answer)
+
+
+NO_MFA_CODE = (
+    "No MFA code entered. Run 'garmin login' in a terminal and type the code from "
+    "your Garmin app or email."
+)
+
+
+def test_login_mfa_end_of_input(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    def end_of_input(prompt: str) -> str:
+        raise EOFError
+
+    mfa_answer(monkeypatch, end_of_input)
+
+    assert_login_error(capsys, main(["login"], connect=no_connect), NO_MFA_CODE)
+
+
+def test_login_mfa_empty_code(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    mfa_answer(monkeypatch, lambda prompt: "")
+
+    assert_login_error(capsys, main(["login"], connect=no_connect), NO_MFA_CODE)

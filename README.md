@@ -27,6 +27,16 @@ garmin login
 commands read those tokens. When the tokens expire, a command fails and tells you to
 run `garmin login` again.
 
+| Message starts with | Fix |
+|---|---|
+| `Not logged in` | Run `garmin login`. |
+| `GARMIN_EMAIL is not set` | `export GARMIN_EMAIL=you@example.com` |
+| `No Keychain password` | Add it with the `security add-generic-password` line above. |
+| `'garmin login' reads the password from the macOS Keychain` | Log in on a Mac and copy the token folder, or point `GARMINTOKENS` at a copy. |
+| `Garmin rejected the login` | Fix the Keychain password, then run `garmin login`. |
+| `No MFA code entered` | Run `garmin login` in a terminal and type the code. |
+| `Garmin is rate-limiting logins` | Wait about an hour, then run `garmin login`. |
+
 ## Dates
 
 Every date argument takes `today`, `yesterday` or `YYYY-MM-DD`.
