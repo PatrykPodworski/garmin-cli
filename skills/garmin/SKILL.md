@@ -1,0 +1,62 @@
+---
+name: garmin
+description: Use when the user asks about their Garmin data — workouts (runs, rides), sleep or sleep score, weight, body fat, blood pressure, calories burned, resting heart rate, body battery or stress.
+---
+
+# garmin
+
+`garmin` reads the user's Garmin Connect data and prints JSON. Run it with Bash.
+
+## Login
+
+The user logs in; you only read. A command that exits 1 with `Not logged in` means
+the saved login is missing or expired: ask the user to run `garmin login` in their
+own terminal, because it reads their Keychain password and may ask for an MFA code.
+Leave the token folder (`~/.garminconnect` or `$GARMINTOKENS`) unread.
+
+## Commands
+
+Every date takes `today`, `yesterday` or `YYYY-MM-DD`.
+
+```sh
+garmin stats [DATE]                    # calories, resting HR, body battery, stress (default today)
+garmin sleep [DATE]                    # the night that ended on the morning of DATE (default today)
+garmin sleep --night-of DATE           # the night that started on the evening of DATE
+garmin weight --from DATE --to DATE    # weigh-ins and body composition (both default today)
+garmin bp --from DATE --to DATE        # blood pressure readings (both default today)
+garmin activities --limit 5 --type running --from DATE --to DATE  # newest first, default limit 20
+garmin activity ID                     # one activity with laps and HR zones; ID from `activities`
+```
+
+`garmin <command> --help` lists every flag.
+
+## Rules
+
+- Sleep is filed under the wake-up date. "Last night" is `garmin sleep`. Asked after
+  midnight, before the user has gone to sleep, "last night" is `garmin sleep yesterday`.
+  "The night of the 4th" is `garmin sleep --night-of 2026-07-04`.
+- Summary floats are rounded to two decimals. Quote them as printed.
+- Start with the summary. Add `--raw` only when the field you need is missing from it:
+  raw output is the full Garmin response, many times larger.
+
+## Output and errors
+
+Results are JSON on stdout. An error is one stderr line,
+`garmin: <What happened.> <What to do.>`.
+
+Match the message first, then the exit code:
+
+- `Unexpected error` (exit 1): a bug in garmin-cli. Show the full line to the user and stop.
+- Exit 1, the second sentence names a `garmin` command other than `garmin login`
+  (`Run 'garmin activities' to list recent IDs.`): run it yourself once.
+- Exit 1, `or use --night-of if <date> is the night you went to bed`: run `--night-of`
+  only when the user named that date as their bedtime; otherwise tell the user to sync.
+- Any other exit 1 (not logged in, not synced, rate limit, no connection, unreadable
+  response): tell the user the second sentence and wait for them.
+- Exit 2: bad arguments. The message names the fix (`Did you mean 'sleep'?`,
+  `Use today, yesterday or YYYY-MM-DD.`); correct the call and retry once.
+
+## Privacy
+
+The output is the user's health data. Keep it in this conversation; put it in an
+issue, commit, PR or any other external place only when the user asks.
