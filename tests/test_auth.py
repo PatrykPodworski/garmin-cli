@@ -42,7 +42,7 @@ def test_connect_uses_garmintokens(monkeypatch: pytest.MonkeyPatch) -> None:
 def test_connect_without_tokens_says_to_log_in(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setenv("GARMINTOKENS", "/tokens")
+    monkeypatch.delenv("GARMINTOKENS", raising=False)
 
     class NoTokens:
         def login(self, tokenstore: str) -> None:
@@ -54,18 +54,20 @@ def test_connect_without_tokens_says_to_log_in(
         auth.connect()
 
     assert str(error.value) == (
-        "Not logged in: no valid saved login in /tokens. Run 'garmin login'."
+        "Not logged in: no valid saved login in ~/.garminconnect. Run 'garmin login'."
     )
 
 
-# garminconnect accepts the token JSON itself in GARMINTOKENS.
-INLINE_TOKENS = ' {"di_token": "fake-token"}'
+# garminconnect also accepts the token JSON itself in GARMINTOKENS, so its value
+# is never printed.
+GARMINTOKENS_VALUES = ["/tokens", '{"di_token": "fake-token"}', '[{"di": "fake"}]']
 
 
-def test_connect_without_tokens_hides_inline_tokens(
-    monkeypatch: pytest.MonkeyPatch,
+@pytest.mark.parametrize("value", GARMINTOKENS_VALUES)
+def test_connect_without_tokens_names_garmintokens(
+    value: str, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setenv("GARMINTOKENS", INLINE_TOKENS)
+    monkeypatch.setenv("GARMINTOKENS", value)
 
     class ExpiredTokens:
         def login(self, tokenstore: str) -> None:
@@ -77,7 +79,8 @@ def test_connect_without_tokens_hides_inline_tokens(
         auth.connect()
 
     assert str(error.value) == (
-        "Not logged in: no valid saved login in GARMINTOKENS. Run 'garmin login'."
+        "Not logged in: no valid saved login in the token store in GARMINTOKENS. "
+        "Run 'garmin login'."
     )
 
 
@@ -179,6 +182,9 @@ def test_login_saves_tokens_to_garmintokens(
 
     assert main(["login"], connect=no_connect) == 0
     assert clients[0].tokenstore == "/tokens"
+    assert json.loads(capsys.readouterr().out) == {
+        "tokenstore": "the token store in GARMINTOKENS"
+    }
 
 
 def test_login_prompts_for_mfa_code(
@@ -262,7 +268,7 @@ def test_login_without_security_tool(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
     monkeypatch.setenv("GARMIN_EMAIL", "runner@example.com")
-    monkeypatch.setenv("GARMINTOKENS", "/tokens")
+    monkeypatch.delenv("GARMINTOKENS", raising=False)
 
     def run(args: list[str], **kwargs: Any) -> subprocess.CompletedProcess[str]:
         raise FileNotFoundError(2, "No such file or directory", "security")
@@ -275,16 +281,17 @@ def test_login_without_security_tool(
         capsys,
         code,
         "'garmin login' reads the password from the macOS Keychain, which is not "
-        "available here. Log in on a Mac and copy /tokens to this machine, or set "
-        "GARMINTOKENS to a copied token folder.",
+        "available here. Log in on a Mac and copy ~/.garminconnect to this machine, "
+        "or set GARMINTOKENS to a copied token folder.",
     )
 
 
-def test_login_without_security_tool_hides_inline_tokens(
-    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+@pytest.mark.parametrize("value", GARMINTOKENS_VALUES)
+def test_login_without_security_tool_names_garmintokens(
+    value: str, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
     monkeypatch.setenv("GARMIN_EMAIL", "runner@example.com")
-    monkeypatch.setenv("GARMINTOKENS", INLINE_TOKENS)
+    monkeypatch.setenv("GARMINTOKENS", value)
 
     def run(args: list[str], **kwargs: Any) -> subprocess.CompletedProcess[str]:
         raise FileNotFoundError(2, "No such file or directory", "security")
@@ -297,8 +304,8 @@ def test_login_without_security_tool_hides_inline_tokens(
         capsys,
         code,
         "'garmin login' reads the password from the macOS Keychain, which is not "
-        "available here. Log in on a Mac and copy GARMINTOKENS to this machine, or "
-        "set GARMINTOKENS to a copied token folder.",
+        "available here. Log in on a Mac and copy the token store in GARMINTOKENS to "
+        "this machine, or set GARMINTOKENS to a copied token folder.",
     )
 
 

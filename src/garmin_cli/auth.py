@@ -19,10 +19,11 @@ def tokenstore() -> str:
 
 
 def tokenstore_name() -> str:
-    """The tokenstore for messages. GARMINTOKENS may hold the token JSON itself,
-    which must not be printed."""
-    path = tokenstore()
-    return "GARMINTOKENS" if path.strip().startswith("{") else path
+    """The tokenstore for output. GARMINTOKENS may hold the token JSON itself, so
+    its value is never printed."""
+    if "GARMINTOKENS" in os.environ:
+        return "the token store in GARMINTOKENS"
+    return tokenstore()
 
 
 def connect() -> GarminClient:
@@ -101,7 +102,7 @@ def login(_args: argparse.Namespace, _connect: Connect) -> dict[str, str]:
         if isinstance(error.__cause__, GarminCliError):
             raise error.__cause__ from None
         raise
-    return {"tokenstore": path}
+    return {"tokenstore": tokenstore_name()}
 
 
 def register(subparsers: "argparse._SubParsersAction[argparse.ArgumentParser]") -> None:
