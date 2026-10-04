@@ -119,6 +119,20 @@ def test_sleep_not_synced_exits_nonzero(capsys: pytest.CaptureFixture[str]) -> N
     )
 
 
+def test_sleep_night_of_not_synced_drops_the_hint(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    client = FakeClient(get_sleep_data={"dailySleepDTO": {}})
+
+    assert run_sleep(client, "--night-of", "2026-07-04") == 1
+    out = capsys.readouterr()
+    assert out.out == ""
+    assert out.err == (
+        "garmin: No sleep data for the night of 2026-07-04 yet. Sync your watch "
+        "with Garmin Connect, then try again.\n"
+    )
+
+
 def test_sleep_raw_prints_the_full_response(
     capsys: pytest.CaptureFixture[str],
 ) -> None:

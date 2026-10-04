@@ -1,6 +1,8 @@
+import sys
 from typing import Any
 
 import pytest
+import requests
 from conftest import FakeClient, run_json
 from garminconnect import (
     GarminConnectAuthenticationError,
@@ -86,7 +88,27 @@ CONFLICT = (
         (["sleep", "--night-of", "2026-07-04", "2026-07-05"], CONFLICT),
         (
             ["activities", "--limit"],
-            "Argument --limit: expected one argument. Run 'garmin activities --help'.",
+            "Option '--limit' needs a value. Run 'garmin activities --help'.",
+        ),
+        (["sleep", "--raw=1"], "Option '--raw' takes no value. Remove '=1'."),
+        (
+            ["activities", "--lim", "3"],
+            "Unknown option '--lim' for 'garmin activities'. Did you mean '--limit'? "
+            "Run 'garmin activities --help' for all options.",
+        ),
+        (
+            ["--raw", "sleep"],
+            "Option '--raw' goes after the command. Run 'garmin sleep --raw'.",
+        ),
+        (
+            ["--debug", "--raw", "sleep", "2026-07-05"],
+            "Option '--raw' goes after the command. "
+            "Run 'garmin --debug sleep --raw 2026-07-05'.",
+        ),
+        (
+            ["--limit=3", "activities"],
+            "Option '--limit=3' goes after the command. "
+            "Run 'garmin activities --limit=3'.",
         ),
     ],
 )
@@ -102,6 +124,19 @@ def test_argument_error_exits_2_with_one_line(
     assert out.out == ""
 
 
+def test_reads_sys_argv_by_default(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setattr(sys, "argv", ["garmin", "--raw", "sleep"])
+
+    with pytest.raises(SystemExit):
+        main(connect=FakeClient)
+
+    assert capsys.readouterr().err == (
+        "garmin: Option '--raw' goes after the command. Run 'garmin sleep --raw'.\n"
+    )
+
+
 def test_missing_argument_generic_message(capsys: pytest.CaptureFixture[str]) -> None:
     parser = CliParser(prog="garmin demo")
     parser.add_argument("name")
@@ -113,6 +148,24 @@ def test_missing_argument_generic_message(capsys: pytest.CaptureFixture[str]) ->
     assert capsys.readouterr().err == (
         "garmin: Missing name for 'garmin demo'. Run 'garmin demo --help'.\n"
     )
+
+
+def test_invalid_choice_on_subcommand_generic_message(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    parser = CliParser(prog="garmin")
+    demo = parser.add_subparsers().add_parser("demo")
+    demo.add_argument("--unit", choices=["kg", "lb"])
+
+    with pytest.raises(SystemExit) as exit:
+        parser.parse_args(["demo", "--unit", "st"])
+
+    assert exit.value.code == 2
+    # Python 3.12 patch releases differ in how they quote the choices.
+    err = capsys.readouterr().err
+    assert err.startswith("garmin: Argument --unit: invalid choice: 'st' (choose from")
+    assert err.endswith("). Run 'garmin demo --help'.\n")
+    assert err.count("\n") == 1
 
 
 def test_prints_json_indented_by_2(capsys: pytest.CaptureFixture[str]) -> None:
@@ -157,22 +210,44 @@ UNEXPECTED = (
             f"Stats server error (503)). {NETWORK}",
         ),
         (
-            ConnectionError("connection refused"),
+            requests.exceptions.ConnectionError("connection refused"),
             f"Could not reach Garmin Connect (ConnectionError: connection refused). "
             f"{NETWORK}",
         ),
         (
-            TimeoutError("x" * 200),
-            f"Could not reach Garmin Connect (TimeoutError: {'x' * 86}). {NETWORK}",
+            requests.exceptions.Timeout("x" * 200),
+            f"Could not reach Garmin Connect (Timeout: {'x' * 91}). {NETWORK}",
+        ),
+        (
+            requests.exceptions.ConnectionError(
+                "Max retries exceeded with url: /sso?ticket=ST-0000-fake (refused)"
+            ),
+            "Could not reach Garmin Connect (ConnectionError: Max retries exceeded "
+            f"with url: /sso?… (refused)). {NETWORK}",
+        ),
+        (
+            GarminConnectConnectionError("401 for Authorization: Bearer fake.token"),
+            "Could not reach Garmin Connect (GarminConnectConnectionError: 401 for "
+            f"Authorization: Bearer …). {NETWORK}",
+        ),
+        (
+            RuntimeError("first line\nsecond line with fake-secret"),
+            f"Unexpected error (RuntimeError: first line). {UNEXPECTED}",
+        ),
+        (
+            requests.exceptions.JSONDecodeError("Expecting value", "<html>", 0),
+            "Garmin Connect sent a response garmin-cli could not read. Try again in "
+            "a few minutes; if it keeps failing, rerun with --debug and report it at "
+            "https://github.com/PatrykPodworski/garmin-cli/issues.",
+        ),
+        (
+            PermissionError(13, "Permission denied"),
+            "Unexpected error (PermissionError: [Errno 13] Permission denied). "
+            f"{UNEXPECTED}",
         ),
         (
             KeyError("x"),
             f"Unexpected error (KeyError: 'x'). {UNEXPECTED}",
-        ),
-        (
-            GarminConnectAuthenticationError("Authentication failed: 401"),
-            "Unexpected error (GarminConnectAuthenticationError: Authentication "
-            f"failed: 401). {UNEXPECTED}",
         ),
     ],
 )
@@ -184,6 +259,21 @@ def test_error_exits_1_with_message(
     assert main(["stats"], connect=lambda: client) == 1
     out = capsys.readouterr()
     assert out.err == f"garmin: {message}\n"
+    assert out.out == ""
+
+
+def test_expired_token_during_data_call(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.delenv("GARMINTOKENS", raising=False)
+    client: Any = RaisingClient(GarminConnectAuthenticationError("401"))
+
+    assert main(["stats"], connect=lambda: client) == 1
+    out = capsys.readouterr()
+    assert out.err == (
+        "garmin: Not logged in: no valid saved login in ~/.garminconnect. "
+        "Run 'garmin login'.\n"
+    )
     assert out.out == ""
 
 
@@ -220,6 +310,32 @@ def test_error_message_hides_garmintokens(
     assert capsys.readouterr().err == (
         "garmin: Unexpected error (ValueError: bad tokens GARMINTOKENS). "
         f"{UNEXPECTED}\n"
+    )
+
+
+def test_long_garmintokens_hidden_before_the_cap(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    tokens = '{"di_token": "' + "f" * 120 + '"}'
+    monkeypatch.setenv("GARMINTOKENS", tokens)
+    client: Any = RaisingClient(RuntimeError(f"bad {tokens}"))
+
+    assert main(["stats"], connect=lambda: client) == 1
+    assert capsys.readouterr().err == (
+        f"garmin: Unexpected error (RuntimeError: bad GARMINTOKENS). {UNEXPECTED}\n"
+    )
+
+
+def test_garmintokens_with_question_mark_hidden(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    tokens = '{"a": "x?y", "b": "fake-secret"}'
+    monkeypatch.setenv("GARMINTOKENS", tokens)
+    client: Any = RaisingClient(RuntimeError(f"bad {tokens}"))
+
+    assert main(["stats"], connect=lambda: client) == 1
+    assert capsys.readouterr().err == (
+        f"garmin: Unexpected error (RuntimeError: bad GARMINTOKENS). {UNEXPECTED}\n"
     )
 
 

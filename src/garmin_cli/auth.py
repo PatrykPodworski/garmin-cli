@@ -26,16 +26,20 @@ def tokenstore_name() -> str:
     return tokenstore()
 
 
+def not_logged_in() -> GarminCliError:
+    return GarminCliError(
+        f"Not logged in: no valid saved login in {tokenstore_name()}.",
+        "Run 'garmin login'.",
+    )
+
+
 def connect() -> GarminClient:
     client = Garmin()
     try:
         client.login(tokenstore())
     except GarminConnectAuthenticationError:
         # Garmin reports missing and expired tokens the same way.
-        raise GarminCliError(
-            f"Not logged in: no valid saved login in {tokenstore_name()}.",
-            "Run 'garmin login'.",
-        ) from None
+        raise not_logged_in() from None
     # garminconnect ships no py.typed, so `Garmin` is Any to mypy.
     return cast(GarminClient, client)
 
@@ -72,7 +76,10 @@ def login(_args: argparse.Namespace, _connect: Connect) -> dict[str, str]:
         raise GarminCliError(
             "'garmin login' reads the password from the macOS Keychain, which is "
             "not available here.",
-            f"Log in on a Mac and copy {tokenstore_name()} to this machine, or set "
+            "Copy a token folder from a Mac that ran 'garmin login' and point "
+            "GARMINTOKENS at it."
+            if "GARMINTOKENS" in os.environ
+            else f"Log in on a Mac and copy {tokenstore()} to this machine, or set "
             "GARMINTOKENS to a copied token folder.",
         ) from None
     if keychain.returncode != 0:

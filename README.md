@@ -32,7 +32,7 @@ run `garmin login` again.
 | `Not logged in` | Run `garmin login`. |
 | `GARMIN_EMAIL is not set` | `export GARMIN_EMAIL=you@example.com` |
 | `No Keychain password` | Add it with the `security add-generic-password` line above. |
-| `'garmin login' reads the password from the macOS Keychain` | Log in on a Mac and copy the token folder, or point `GARMINTOKENS` at a copy. |
+| `'garmin login' reads the password from the macOS Keychain` | Log in on a Mac and copy the token folder, or point `GARMINTOKENS` at a copy. With `GARMINTOKENS` set, the message says to copy a token folder from a Mac and point `GARMINTOKENS` at it. |
 | `Garmin rejected the login` | Fix the Keychain password, then run `garmin login`. |
 | `No MFA code entered` | Run `garmin login` in a terminal and type the code. |
 | `Garmin is rate-limiting logins` | Wait about an hour, then run `garmin login`. |
@@ -232,10 +232,16 @@ Messages for status 1:
 |---|---|
 | `stats` day not synced | `garmin: No daily summary for <date> yet. Sync your watch with Garmin Connect, then try again.` |
 | `sleep` night not synced | `garmin: No sleep data for the night ending <date> yet. Sync your watch with Garmin Connect, or use --night-of if <date> is the night you went to bed.` |
+| `sleep --night-of` night not synced | `garmin: No sleep data for the night of <date> yet. Sync your watch with Garmin Connect, then try again.` |
 | `activity <id>` not found | `garmin: No activity with ID <id>. Run 'garmin activities' to list recent IDs.` |
 | Rate limit | `garmin: Garmin is rate-limiting requests from this machine. Wait a few minutes and try again.` |
-| Network failure | `garmin: Could not reach Garmin Connect (<error type>: <first line, max 100 characters>). Check your internet connection and try again.` |
-| Bug in garmin-cli | `garmin: Unexpected error (<error type>: <message>). Rerun with --debug and report it at https://github.com/PatrykPodworski/garmin-cli/issues.` |
+| Tokens expired | `garmin: Not logged in: no valid saved login in ~/.garminconnect. Run 'garmin login'.` |
+| Unreadable response | `garmin: Garmin Connect sent a response garmin-cli could not read. Try again in a few minutes; if it keeps failing, rerun with --debug and report it at https://github.com/PatrykPodworski/garmin-cli/issues.` |
+| Network failure | `garmin: Could not reach Garmin Connect (<reason>). Check your internet connection and try again.` |
+| Bug in garmin-cli | `garmin: Unexpected error (<reason>). Rerun with --debug and report it at https://github.com/PatrykPodworski/garmin-cli/issues.` |
+
+`<reason>` is `<error type>: <first line of the message>`, with URL query strings
+shortened to `?…`, `Bearer` values to `Bearer …`, and the whole cut to 100 characters.
 
 `garmin --debug <command>` prints the full Python traceback for an unexpected error
 instead of the one-line message.
