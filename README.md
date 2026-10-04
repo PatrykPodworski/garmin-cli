@@ -246,6 +246,15 @@ shortened to `?…`, `Bearer` values to `Bearer …`, and the whole cut to 100 c
 `garmin --debug <command>` prints the full Python traceback for an unexpected error
 instead of the one-line message.
 
+## Use from an agent
+
+`skills/garmin/SKILL.md` tells Claude Code and similar agents when and how to call
+`garmin`. Install it from a clone:
+
+```sh
+ln -s "$PWD/skills/garmin" ~/.claude/skills/garmin
+```
+
 ## Development
 
 ```sh
