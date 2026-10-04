@@ -325,6 +325,19 @@ def test_long_garmintokens_hidden_before_the_cap(
     )
 
 
+def test_garmintokens_with_question_mark_hidden(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    tokens = '{"a": "x?y", "b": "fake-secret"}'
+    monkeypatch.setenv("GARMINTOKENS", tokens)
+    client: Any = RaisingClient(RuntimeError(f"bad {tokens}"))
+
+    assert main(["stats"], connect=lambda: client) == 1
+    assert capsys.readouterr().err == (
+        f"garmin: Unexpected error (RuntimeError: bad GARMINTOKENS). {UNEXPECTED}\n"
+    )
+
+
 def test_debug_help(capsys: pytest.CaptureFixture[str]) -> None:
     with pytest.raises(SystemExit):
         main(["--help"])

@@ -106,12 +106,14 @@ class CliParser(argparse.ArgumentParser):
 
 def reason(error: BaseException) -> str:
     """`<type>: <message>` for an error line, without secrets and on one line."""
-    text = f"{type(error).__name__}: {str(error).partition(chr(10))[0]}"
-    text = re.sub(r"\?\S+", "?…", text)
-    text = re.sub(r"Bearer \S+", "Bearer …", text)
+    text = str(error)
     # GARMINTOKENS may hold the token JSON itself, and error texts may quote it.
+    # First, so the other rewrites cannot change part of the value.
     if tokens := os.environ.get("GARMINTOKENS"):
         text = text.replace(tokens, "GARMINTOKENS")
+    text = f"{type(error).__name__}: {text.partition(chr(10))[0]}"
+    text = re.sub(r"\?\S+", "?…", text)
+    text = re.sub(r"Bearer \S+", "Bearer …", text)
     return text[:100]
 
 
