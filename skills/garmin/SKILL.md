@@ -1,6 +1,6 @@
 ---
 name: garmin
-description: Use when the user asks about their Garmin data — runs, rides, workouts, how they slept, sleep score, weight, body fat, blood pressure, calories burned, resting heart rate, body battery or stress.
+description: Use when the user asks about their Garmin data — workouts (runs, rides), sleep or sleep score, weight, body fat, blood pressure, calories burned, resting heart rate, body battery or stress.
 ---
 
 # garmin
@@ -44,11 +44,17 @@ garmin activity ID                     # one activity with laps and HR zones; ID
 Results are JSON on stdout. An error is one stderr line,
 `garmin: <What happened.> <What to do.>`.
 
-- Exit 1: Garmin, login or not-synced error. Tell the user the second sentence (what
-  to do), e.g. sync the watch, and wait for them.
+Match the message first, then the exit code:
+
+- `Unexpected error` (exit 1): a bug in garmin-cli. Show the full line to the user and stop.
+- Exit 1, the second sentence names a `garmin` command or flag other than `garmin login`
+  and `--debug` (`Run 'garmin activities' to list recent IDs.`, `or use --night-of if …`):
+  run that yourself once.
+- Any other exit 1 (not logged in, not synced, rate limit, no connection, unreadable
+  response): tell the user
+  the second sentence and wait for them.
 - Exit 2: bad arguments. The message names the fix (`Did you mean 'sleep'?`,
   `Use today, yesterday or YYYY-MM-DD.`); correct the call and retry once.
-- `Unexpected error`: show the full line to the user and stop.
 
 ## Privacy
 
