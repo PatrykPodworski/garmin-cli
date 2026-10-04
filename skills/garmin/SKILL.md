@@ -47,12 +47,12 @@ Results are JSON on stdout. An error is one stderr line,
 Match the message first, then the exit code:
 
 - `Unexpected error` (exit 1): a bug in garmin-cli. Show the full line to the user and stop.
-- Exit 1, the second sentence names a `garmin` command or flag other than `garmin login`
-  and `--debug` (`Run 'garmin activities' to list recent IDs.`, `or use --night-of if …`):
-  run that yourself once.
+- Exit 1, the second sentence names a `garmin` command other than `garmin login`
+  (`Run 'garmin activities' to list recent IDs.`): run it yourself once.
+- Exit 1, `or use --night-of if <date> is the night you went to bed`: run `--night-of`
+  only when the user named that date as their bedtime; otherwise tell the user to sync.
 - Any other exit 1 (not logged in, not synced, rate limit, no connection, unreadable
-  response): tell the user
-  the second sentence and wait for them.
+  response): tell the user the second sentence and wait for them.
 - Exit 2: bad arguments. The message names the fix (`Did you mean 'sleep'?`,
   `Use today, yesterday or YYYY-MM-DD.`); correct the call and retry once.
 
