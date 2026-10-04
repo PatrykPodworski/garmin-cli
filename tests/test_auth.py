@@ -304,8 +304,8 @@ def test_login_without_security_tool_names_garmintokens(
         capsys,
         code,
         "'garmin login' reads the password from the macOS Keychain, which is not "
-        "available here. Log in on a Mac and copy the token store in GARMINTOKENS to "
-        "this machine, or set GARMINTOKENS to a copied token folder.",
+        "available here. Copy a token folder from a Mac that ran 'garmin login' and "
+        "point GARMINTOKENS at it.",
     )
 
 

@@ -7,9 +7,12 @@ import json
 import os
 import re
 import sys
+from collections.abc import Mapping
 from typing import Any, NoReturn, cast
 
+import requests
 from garminconnect import (
+    GarminConnectAuthenticationError,
     GarminConnectConnectionError,
     GarminConnectTooManyRequestsError,
 )
@@ -26,7 +29,11 @@ class CliParser(argparse.ArgumentParser):
     """Reports an argument error on one stderr line, `garmin: <problem> <action>`,
     instead of a usage block."""
 
-    commands: dict[str, argparse.ArgumentParser]
+    # Only the top-level parser has commands.
+    commands: Mapping[str, argparse.ArgumentParser] = {}
+
+    def __init__(self, **kwargs: Any) -> None:
+        super().__init__(**{**kwargs, "allow_abbrev": False})
 
     def fail(self, message: str) -> NoReturn:
         self.exit(2, f"garmin: {message}\n")
@@ -39,7 +46,12 @@ class CliParser(argparse.ArgumentParser):
         # argparse's own messages start lowercase; type functions raise final ones.
         if detail[0].isupper():
             return detail
-        if choice := re.match(r"invalid choice: '(.*?)'", detail):
+        option = message.removeprefix("argument ").partition(":")[0]
+        if detail == "expected one argument":
+            return f"Option '{option}' needs a value. Run '{self.prog} --help'."
+        if value := re.match(r"ignored explicit argument '(.*)'", detail):
+            return f"Option '{option}' takes no value. Remove '={value[1]}'."
+        if self.commands and (choice := re.match(r"invalid choice: '(.*?)'", detail)):
             name = choice[1]
             if match := difflib.get_close_matches(name, self.commands):
                 return f"Unknown command '{name}'. Did you mean '{match[0]}'?"
@@ -67,7 +79,7 @@ class CliParser(argparse.ArgumentParser):
     def run_command(self) -> str:
         return f"Run 'garmin <command>', one of: {', '.join(self.commands)}."
 
-    def reject(self, command: str, arg: str) -> NoReturn:
+    def reject(self, argv: list[str], command: str, arg: str) -> NoReturn:
         """Reports an argument the parser of `command` did not consume."""
         subparser = self.commands[command]
         prog = subparser.prog
@@ -77,10 +89,30 @@ class CliParser(argparse.ArgumentParser):
         options = [
             option for action in subparser._actions for option in action.option_strings
         ]
+        # The command's parser consumes its own options, so one left over came
+        # before the command.
+        if arg.partition("=")[0] in options:
+            rest = list(argv)
+            rest.remove(arg)
+            rest.insert(rest.index(command) + 1, arg)
+            self.fail(
+                f"Option '{arg}' goes after the command. Run 'garmin {' '.join(rest)}'."
+            )
         problem = f"Unknown option '{arg}' for '{prog}'."
         if match := difflib.get_close_matches(arg, options):
             problem += f" Did you mean '{match[0]}'?"
         self.fail(f"{problem} {help}")
+
+
+def reason(error: BaseException) -> str:
+    """`<type>: <message>` for an error line, without secrets and on one line."""
+    text = f"{type(error).__name__}: {str(error).partition(chr(10))[0]}"
+    text = re.sub(r"\?\S+", "?…", text)
+    text = re.sub(r"Bearer \S+", "Bearer …", text)
+    # GARMINTOKENS may hold the token JSON itself, and error texts may quote it.
+    if tokens := os.environ.get("GARMINTOKENS"):
+        text = text.replace(tokens, "GARMINTOKENS")
+    return text[:100]
 
 
 def round_floats(value: Any) -> Any:
@@ -117,9 +149,11 @@ def build_parser() -> CliParser:
 
 def main(argv: list[str] | None = None, connect: Connect = auth.connect) -> int:
     parser = build_parser()
+    if argv is None:
+        argv = sys.argv[1:]
     args, extras = parser.parse_known_args(argv)
     if extras:
-        parser.reject(args.command, extras[0])
+        parser.reject(argv, args.command, extras[0])
     try:
         result = args.run(args, connect)
     except GarminCliError as error:
@@ -129,18 +163,28 @@ def main(argv: list[str] | None = None, connect: Connect = auth.connect) -> int:
             "Garmin is rate-limiting requests from this machine. "
             "Wait a few minutes and try again."
         )
-    # OSError covers network failures: requests exceptions subclass it.
-    except (GarminConnectConnectionError, OSError) as error:
-        reason = f"{type(error).__name__}: {str(error).partition(chr(10))[0]}"
+    except GarminConnectAuthenticationError:
+        message = str(auth.not_logged_in())
+    # Subclasses RequestException, so it goes before the network branch.
+    except requests.exceptions.JSONDecodeError:
         message = (
-            f"Could not reach Garmin Connect ({reason[:100]}). "
+            "Garmin Connect sent a response garmin-cli could not read. Try again in "
+            "a few minutes; if it keeps failing, rerun with --debug and report it at "
+            f"{ISSUES}."
+        )
+    except (
+        GarminConnectConnectionError,
+        requests.exceptions.RequestException,
+    ) as error:
+        message = (
+            f"Could not reach Garmin Connect ({reason(error)}). "
             "Check your internet connection and try again."
         )
     except Exception as error:
         if args.debug:
             raise
         message = (
-            f"Unexpected error ({type(error).__name__}: {error}). "
+            f"Unexpected error ({reason(error)}). "
             f"Rerun with --debug and report it at {ISSUES}."
         )
     else:
@@ -148,8 +192,5 @@ def main(argv: list[str] | None = None, connect: Connect = auth.connect) -> int:
             result = round_floats(result)
         print(json.dumps(result, indent=2))
         return 0
-    # GARMINTOKENS may hold the token JSON itself, and error texts may quote it.
-    if tokens := os.environ.get("GARMINTOKENS"):
-        message = message.replace(tokens, "GARMINTOKENS")
     print(f"garmin: {message}", file=sys.stderr)
     return 1
