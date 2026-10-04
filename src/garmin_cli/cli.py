@@ -6,7 +6,7 @@ import difflib
 import json
 import re
 import sys
-from typing import NoReturn, cast
+from typing import Any, NoReturn, cast
 
 from garminconnect import (
     GarminConnectAuthenticationError,
@@ -82,6 +82,16 @@ class CliParser(argparse.ArgumentParser):
         self.fail(f"{problem} {help}")
 
 
+def round_floats(value: Any) -> Any:
+    if isinstance(value, float):
+        return round(value, 2)
+    if isinstance(value, dict):
+        return {key: round_floats(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [round_floats(item) for item in value]
+    return value
+
+
 def build_parser() -> CliParser:
     parser = CliParser(prog="garmin", description="Read Garmin Connect data as JSON.")
     # Subparsers are CliParsers too; the cast matches the invariant type the
@@ -116,5 +126,7 @@ def main(argv: list[str] | None = None, connect: Connect = auth.connect) -> int:
     ) as error:
         print(f"garmin: {error}", file=sys.stderr)
         return 1
+    if not getattr(args, "raw", False):
+        result = round_floats(result)
     print(json.dumps(result, indent=2))
     return 0

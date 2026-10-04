@@ -206,7 +206,8 @@ not-synced check.
 
 ## Output and exit codes
 
-Results go to stdout as JSON. Errors go to stderr as one line,
+Results go to stdout as JSON. Summary floats are rounded to two decimals; `--raw`
+output is not. Errors go to stderr as one line,
 `garmin: <What happened.> <What to do.>`. A bug in garmin-cli exits with status 1 and
 prints a Python traceback.
 
