@@ -69,7 +69,10 @@ def test_stats_not_synced_exits_1(
     assert code == 1
     out = capsys.readouterr()
     assert out.out == ""
-    assert out.err == "garmin: 2026-07-05 is not synced (no totalKilocalories)\n"
+    assert out.err == (
+        "garmin: 2026-07-05 is not synced (no totalKilocalories). "
+        "Sync your watch and try again.\n"
+    )
 
 
 def test_stats_raw_prints_full_response(capsys: pytest.CaptureFixture[str]) -> None:
