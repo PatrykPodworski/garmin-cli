@@ -8,7 +8,7 @@ from garminconnect import (
     GarminConnectTooManyRequestsError,
 )
 
-from garmin_cli.cli import main
+from garmin_cli.cli import CliParser, main
 from garmin_cli.errors import GarminCliError
 
 
@@ -26,6 +26,93 @@ def test_help_exits_0(capsys: pytest.CaptureFixture[str]) -> None:
 
     assert exit.value.code == 0
     assert "usage: garmin" in capsys.readouterr().out
+
+
+def test_subcommand_help_exits_0(capsys: pytest.CaptureFixture[str]) -> None:
+    with pytest.raises(SystemExit) as exit:
+        main(["sleep", "--help"])
+
+    assert exit.value.code == 0
+    assert capsys.readouterr().out.startswith("usage: garmin sleep")
+
+
+COMMANDS = "login, weight, bp, sleep, activities, activity, stats"
+SLEEP_HELP = "Run 'garmin sleep --help' for all options."
+INVALID_DATE = "Use today, yesterday or YYYY-MM-DD."
+INVALID_LIMIT = "Use a whole number of 1 or more."
+CONFLICT = (
+    "Give either a date or --night-of, not both. Use 'garmin sleep DATE' for the "
+    "wake-up date or 'garmin sleep --night-of DATE' for the lights-out date."
+)
+
+
+@pytest.mark.parametrize(
+    ("argv", "message"),
+    [
+        ([], f"No command given. Run 'garmin <command>', one of: {COMMANDS}."),
+        (["slep"], "Unknown command 'slep'. Did you mean 'sleep'?"),
+        (
+            ["xyz"],
+            f"Unknown command 'xyz'. Run 'garmin <command>', one of: {COMMANDS}.",
+        ),
+        (
+            ["sleep", "--nigth-of", "today"],
+            "Unknown option '--nigth-of' for 'garmin sleep'. "
+            f"Did you mean '--night-of'? {SLEEP_HELP}",
+        ),
+        (
+            ["sleep", "--xyz"],
+            f"Unknown option '--xyz' for 'garmin sleep'. {SLEEP_HELP}",
+        ),
+        (
+            ["stats", "today", "extra"],
+            "Unexpected argument 'extra' for 'garmin stats'. "
+            "Run 'garmin stats --help' for all options.",
+        ),
+        (["sleep", "tomorrow"], f"Invalid date 'tomorrow'. {INVALID_DATE}"),
+        (
+            ["weight", "--from", "2026-13-01"],
+            f"Invalid date '2026-13-01'. {INVALID_DATE}",
+        ),
+        (["activities", "--limit", "x"], f"Invalid --limit 'x'. {INVALID_LIMIT}"),
+        (["activities", "--limit", "0"], f"Invalid --limit '0'. {INVALID_LIMIT}"),
+        (["activities", "--limit", "-1"], f"Invalid --limit '-1'. {INVALID_LIMIT}"),
+        (
+            ["activity"],
+            "Missing activity ID. Run 'garmin activities' to list IDs, "
+            "then 'garmin activity <id>'.",
+        ),
+        (["sleep", "2026-07-05", "--night-of", "2026-07-04"], CONFLICT),
+        (["sleep", "--night-of", "2026-07-04", "2026-07-05"], CONFLICT),
+        (
+            ["activities", "--limit"],
+            "Argument --limit: expected one argument. Run 'garmin activities --help'.",
+        ),
+    ],
+)
+def test_argument_error_exits_2_with_one_line(
+    argv: list[str], message: str, capsys: pytest.CaptureFixture[str]
+) -> None:
+    with pytest.raises(SystemExit) as exit:
+        main(argv, connect=FakeClient)
+
+    assert exit.value.code == 2
+    out = capsys.readouterr()
+    assert out.err == f"garmin: {message}\n"
+    assert out.out == ""
+
+
+def test_missing_argument_generic_message(capsys: pytest.CaptureFixture[str]) -> None:
+    parser = CliParser(prog="garmin demo")
+    parser.add_argument("name")
+
+    with pytest.raises(SystemExit) as exit:
+        parser.parse_args([])
+
+    assert exit.value.code == 2
+    assert capsys.readouterr().err == (
+        "garmin: Missing name for 'garmin demo'. Run 'garmin demo --help'.\n"
+    )
 
 
 def test_prints_json_indented_by_2(capsys: pytest.CaptureFixture[str]) -> None:
@@ -51,7 +138,7 @@ def test_raw_help_on_every_data_command(
 @pytest.mark.parametrize(
     "error",
     [
-        GarminCliError("not synced"),
+        GarminCliError("Not synced.", "Sync it."),
         GarminConnectAuthenticationError("bad credentials"),
         GarminConnectConnectionError("server error"),
         GarminConnectTooManyRequestsError("rate limited"),

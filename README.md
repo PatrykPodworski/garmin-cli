@@ -206,17 +206,15 @@ not-synced check.
 
 ## Output and exit codes
 
-Results go to stdout as JSON. Errors go to stderr. An error with status 1 prints
-`garmin: <message>`. A bug in garmin-cli exits with status 1 and prints a Python
-traceback. Bad arguments exit with status 2 and print a `usage:` line plus
-`garmin <command>: error: <message>` (`garmin: error: <message>` before a command is
-chosen).
+Results go to stdout as JSON. Errors go to stderr as one line,
+`garmin: <What happened.> <What to do.>`. A bug in garmin-cli exits with status 1 and
+prints a Python traceback.
 
-| Code | Meaning |
-|---|---|
-| 0 | Success |
-| 1 | Garmin error, data not synced yet, or login error |
-| 2 | Bad arguments |
+| Code | Meaning | Example |
+|---|---|---|
+| 0 | Success | JSON on stdout |
+| 1 | Garmin error, data not synced yet, or login error | `garmin: No valid saved tokens. Run 'garmin login'.` |
+| 2 | Bad arguments | `garmin: Unknown command 'slep'. Did you mean 'sleep'?` |
 
 ## Development
 

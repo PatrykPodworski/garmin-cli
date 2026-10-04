@@ -47,7 +47,7 @@ def test_connect_without_tokens_says_to_log_in(
     with pytest.raises(GarminCliError) as error:
         auth.connect()
 
-    assert str(error.value) == "no valid saved tokens, run 'garmin login'"
+    assert str(error.value) == "No valid saved tokens. Run 'garmin login'."
 
 
 class FakeGarmin:
@@ -190,7 +190,7 @@ def test_login_without_email_names_the_variable(
     assert code == 1
     assert (
         capsys.readouterr().err
-        == "garmin: set GARMIN_EMAIL to your Garmin account email\n"
+        == "garmin: GARMIN_EMAIL is not set. Set it to your Garmin account email.\n"
     )
     assert calls == []
 
@@ -206,8 +206,8 @@ def test_login_keychain_failure(
 
     assert code == 1
     assert capsys.readouterr().err == (
-        "garmin: no Keychain password for service 'garmin', "
-        "account runner@example.com\n"
+        "garmin: No Keychain password for service 'garmin', "
+        "account runner@example.com. Add it as the README shows.\n"
     )
     assert clients == []
 

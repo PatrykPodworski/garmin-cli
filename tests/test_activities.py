@@ -4,8 +4,6 @@ from typing import Any
 import pytest
 from conftest import FakeClient, run_json
 
-from garmin_cli.cli import main
-
 RUN = {
     "activityId": 101,
     "activityName": "Morning Run",
@@ -118,20 +116,6 @@ def test_activities_without_type(capsys: pytest.CaptureFixture[str]) -> None:
     client = FakeClient(get_activities=[{"activityId": 103}])
 
     assert run_json(["activities"], client, capsys) == [{"id": 103}]
-
-
-@pytest.mark.parametrize("limit", ["0", "-1"])
-def test_activities_limit_must_be_positive(
-    limit: str, capsys: pytest.CaptureFixture[str]
-) -> None:
-    with pytest.raises(SystemExit) as exit:
-        main(["activities", "--limit", limit], connect=FakeClient)
-
-    assert exit.value.code == 2
-    assert (
-        f"error: argument --limit: expected a positive integer, got {limit!r}\n"
-        in capsys.readouterr().err
-    )
 
 
 def test_activities_raw(capsys: pytest.CaptureFixture[str]) -> None:

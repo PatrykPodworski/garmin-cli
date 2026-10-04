@@ -11,7 +11,7 @@ def parse_date(value: str) -> date:
         return datetime.strptime(value, "%Y-%m-%d").date()
     except ValueError:
         raise argparse.ArgumentTypeError(
-            f"expected today, yesterday or YYYY-MM-DD, got {value!r}"
+            f"Invalid date '{value}'. Use today, yesterday or YYYY-MM-DD."
         ) from None
 
 

@@ -24,9 +24,14 @@ FIELDS = {
 
 
 def positive_int(value: str) -> int:
-    number = int(value)
+    try:
+        number = int(value)
+    except ValueError:
+        number = 0
     if number < 1:
-        raise argparse.ArgumentTypeError(f"expected a positive integer, got {value!r}")
+        raise argparse.ArgumentTypeError(
+            f"Invalid --limit '{value}'. Use a whole number of 1 or more."
+        )
     return number
 
 

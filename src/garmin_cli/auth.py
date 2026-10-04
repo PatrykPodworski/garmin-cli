@@ -18,7 +18,7 @@ def connect() -> GarminClient:
     try:
         client.login(tokenstore())
     except GarminConnectAuthenticationError:
-        raise GarminCliError("no valid saved tokens, run 'garmin login'") from None
+        raise GarminCliError("No valid saved tokens.", "Run 'garmin login'.") from None
     # garminconnect ships no py.typed, so `Garmin` is Any to mypy.
     return cast(GarminClient, client)
 
@@ -26,7 +26,9 @@ def connect() -> GarminClient:
 def login(_args: argparse.Namespace, _connect: Connect) -> dict[str, str]:
     email = os.environ.get("GARMIN_EMAIL")
     if not email:
-        raise GarminCliError("set GARMIN_EMAIL to your Garmin account email")
+        raise GarminCliError(
+            "GARMIN_EMAIL is not set.", "Set it to your Garmin account email."
+        )
     keychain = subprocess.run(
         ["security", "find-generic-password", "-s", "garmin", "-a", email, "-w"],
         capture_output=True,
@@ -34,7 +36,8 @@ def login(_args: argparse.Namespace, _connect: Connect) -> dict[str, str]:
     )
     if keychain.returncode != 0:
         raise GarminCliError(
-            f"no Keychain password for service 'garmin', account {email}"
+            f"No Keychain password for service 'garmin', account {email}.",
+            "Add it as the README shows.",
         )
     password = keychain.stdout.rstrip("\n")
     client = Garmin(email, password, prompt_mfa=lambda: input("MFA code: "))
