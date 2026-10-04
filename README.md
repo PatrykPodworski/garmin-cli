@@ -218,14 +218,27 @@ not-synced check.
 
 Results go to stdout as JSON. Summary floats are rounded to two decimals; `--raw`
 output is not. Errors go to stderr as one line,
-`garmin: <What happened.> <What to do.>`. A bug in garmin-cli exits with status 1 and
-prints a Python traceback.
+`garmin: <What happened.> <What to do.>`.
 
 | Code | Meaning | Example |
 |---|---|---|
 | 0 | Success | JSON on stdout |
-| 1 | Garmin error, data not synced yet, or login error | `garmin: Not logged in: no valid saved login in ~/.garminconnect. Run 'garmin login'.` |
+| 1 | Garmin error, data not synced yet, login error, or a bug | `garmin: Not logged in: no valid saved login in ~/.garminconnect. Run 'garmin login'.` |
 | 2 | Bad arguments | `garmin: Unknown command 'slep'. Did you mean 'sleep'?` |
+
+Messages for status 1:
+
+| Case | Message |
+|---|---|
+| `stats` day not synced | `garmin: No daily summary for <date> yet. Sync your watch with Garmin Connect, then try again.` |
+| `sleep` night not synced | `garmin: No sleep data for the night ending <date> yet. Sync your watch with Garmin Connect, or use --night-of if <date> is the night you went to bed.` |
+| `activity <id>` not found | `garmin: No activity with ID <id>. Run 'garmin activities' to list recent IDs.` |
+| Rate limit | `garmin: Garmin is rate-limiting requests from this machine. Wait a few minutes and try again.` |
+| Network failure | `garmin: Could not reach Garmin Connect (<error type>: <first line, max 100 characters>). Check your internet connection and try again.` |
+| Bug in garmin-cli | `garmin: Unexpected error (<error type>: <message>). Rerun with --debug and report it at https://github.com/PatrykPodworski/garmin-cli/issues.` |
+
+`garmin --debug <command>` prints the full Python traceback for an unexpected error
+instead of the one-line message.
 
 ## Development
 

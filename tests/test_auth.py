@@ -360,7 +360,12 @@ def test_login_connection_error_passes_through(
 
     code = main(["login"], connect=no_connect)
 
-    assert_login_error(capsys, code, "Login failed: timeout")
+    assert_login_error(
+        capsys,
+        code,
+        "Could not reach Garmin Connect (GarminConnectConnectionError: Login failed: "
+        "timeout). Check your internet connection and try again.",
+    )
 
 
 def mfa_answer(monkeypatch: pytest.MonkeyPatch, answer: Callable[[str], str]) -> None:

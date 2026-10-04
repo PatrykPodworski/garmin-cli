@@ -2,8 +2,11 @@ import argparse
 from datetime import date
 from typing import Any
 
+from garminconnect import GarminConnectNotFoundError
+
 from garmin_cli.client import Connect
 from garmin_cli.dates import add_range_arguments
+from garmin_cli.errors import GarminCliError
 
 # Output name -> Garmin key. A list item and a detail `summaryDTO` name the
 # aerobic training effect differently, so either key fills `aerobic_te`.
@@ -70,7 +73,13 @@ def activities(args: argparse.Namespace, connect: Connect) -> Any:
 
 def activity(args: argparse.Namespace, connect: Connect) -> Any:
     client = connect()
-    summary = client.get_activity(args.id)
+    try:
+        summary = client.get_activity(args.id)
+    except GarminConnectNotFoundError:
+        raise GarminCliError(
+            f"No activity with ID {args.id}.",
+            "Run 'garmin activities' to list recent IDs.",
+        ) from None
     splits = client.get_activity_splits(args.id)
     zones = client.get_activity_hr_in_timezones(args.id)
     if args.raw:

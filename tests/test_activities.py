@@ -3,6 +3,9 @@ from typing import Any
 
 import pytest
 from conftest import FakeClient, run_json
+from garminconnect import GarminConnectNotFoundError
+
+from garmin_cli.cli import main
 
 RUN = {
     "activityId": 101,
@@ -207,6 +210,22 @@ def test_activity_not_synced(capsys: pytest.CaptureFixture[str]) -> None:
     result = run_json(["activity", "101"], client, capsys)
 
     assert result == {"id": 101, "laps": [], "hr_zones": []}
+
+
+class MissingActivity:
+    def get_activity(self, _activity_id: str) -> Any:
+        raise GarminConnectNotFoundError("Activity client error (404): Not Found")
+
+
+def test_activity_not_found_exits_1(capsys: pytest.CaptureFixture[str]) -> None:
+    client: Any = MissingActivity()
+
+    assert main(["activity", "999"], connect=lambda: client) == 1
+    out = capsys.readouterr()
+    assert out.out == ""
+    assert out.err == (
+        "garmin: No activity with ID 999. Run 'garmin activities' to list recent IDs.\n"
+    )
 
 
 def test_activity_raw(capsys: pytest.CaptureFixture[str]) -> None:

@@ -13,8 +13,8 @@ def stats(args: argparse.Namespace, connect: Connect) -> Any:
         return response
     if response.get("totalKilocalories") is None:
         raise GarminCliError(
-            f"{day} is not synced (no totalKilocalories).",
-            "Sync your watch and try again.",
+            f"No daily summary for {day} yet.",
+            "Sync your watch with Garmin Connect, then try again.",
         )
     return {
         "date": day,
