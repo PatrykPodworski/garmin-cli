@@ -253,17 +253,18 @@ overrides it, and a machine without one exits with status 2 and asks for `--tz`.
 ### activity delete
 
 ```sh
+garmin activity delete 1234567890 --dry-run
 garmin activity delete 1234567890
-garmin activity delete 1234567890 --yes
 ```
 
-Deletes an activity from Garmin Connect, for example a wrong manual entry. It first
-reads the activity, so an unknown ID fails with the `garmin activity` message, then
-asks on stderr: `Delete "Park run" (running, 2026-07-05 07:00)? [y/N]`. Any answer
-but `y` or `yes` exits with status 1 and `garmin: Nothing deleted.` `--yes` skips
-the question; without a terminal to ask on (a script or an agent), the command
-exits with status 2 unless `--yes` is given. After the deletion, stdout is
-`{"deleted": 1234567890}` and stderr `garmin: Deleted "Park run" (2026-07-05 07:00).`
+Deletes an activity from Garmin Connect, for example a wrong manual entry, without
+asking. Take the ID from `garmin activities`. The command first reads the activity,
+so an unknown ID fails with the `garmin activity` message and deletes nothing. After
+the deletion, stdout is `{"deleted": 1234567890}` and stderr
+`garmin: Deleted "Park run" (2026-07-05 07:00).` `--dry-run` only reads the
+activity: stdout `{"would_delete": 1234567890}`, stderr
+`garmin: Would delete "Park run" (2026-07-05 07:00).` An activity without a name
+shows as `activity 1234567890`; without a start time, the time is left out.
 
 ## Raw output
 
@@ -293,7 +294,6 @@ Messages for status 1:
 | `sleep --night-of` night not synced | `garmin: No sleep data for the night of <date> yet. Sync your watch with Garmin Connect, then try again.` |
 | `sleep set` night has no time zone | `garmin: Garmin Connect sent no time zone for the night ending <date>, so garmin-cli cannot convert the times. Adjust the sleep times in the Garmin Connect app.` |
 | `activity <id>` not found | `garmin: No activity with ID <id>. Run 'garmin activities' to list recent IDs.` |
-| `activity delete` answered no | `garmin: Nothing deleted.` |
 | Rate limit | `garmin: Garmin is rate-limiting requests from this machine. Wait a few minutes and try again.` |
 | Tokens expired | `garmin: Not logged in: no valid saved login in ~/.garminconnect. Run 'garmin login'.` |
 | Unreadable response | `garmin: Garmin Connect sent a response garmin-cli could not read. Try again in a few minutes; if it keeps failing, rerun with --debug and report it at https://github.com/PatrykPodworski/garmin-cli/issues.` |

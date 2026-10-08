@@ -19,22 +19,18 @@ def activity_id(value: str) -> str:
 
 
 def delete_activity(args: argparse.Namespace, connect: Connect) -> Any:
-    if not (args.yes or sys.stdin.isatty()):
-        args.parser.fail(
-            "Cannot ask to confirm the deletion: stdin is not a terminal. "
-            "Pass --yes to delete without asking."
-        )
     client = connect()
     summary = fetch_activity(client, args.id)
-    name = summary["activityName"]
-    start = summary["summaryDTO"]["startTimeLocal"][:16].replace("T", " ")
-    if not args.yes:
-        type_key = summary["activityTypeDTO"]["typeKey"]
-        print(f'Delete "{name}" ({type_key}, {start})? [y/N] ', end="", file=sys.stderr)
-        if sys.stdin.readline().strip().lower() not in ("y", "yes"):
-            args.parser.exit(1, "garmin: Nothing deleted.\n")
+    name = summary.get("activityName")
+    start = (summary.get("summaryDTO") or {}).get("startTimeLocal")
+    what = f'"{name}"' if name is not None else f"activity {args.id}"
+    if start:
+        what += f" ({start[:16].replace('T', ' ')})"
+    if args.dry_run:
+        print(f"garmin: Would delete {what}.", file=sys.stderr)
+        return {"would_delete": int(args.id)}
     client.delete_activity(args.id)
-    print(f'garmin: Deleted "{name}" ({start}).', file=sys.stderr)
+    print(f"garmin: Deleted {what}.", file=sys.stderr)
     return {"deleted": int(args.id)}
 
 
@@ -43,13 +39,13 @@ def register(subparsers: "argparse._SubParsersAction[argparse.ArgumentParser]") 
     # `help`, `garmin --help` leaves it out; `garmin activity --help` names it.
     delete_parser = subparsers.add_parser(
         "activity delete",
-        description="Deletes an activity from Garmin Connect. Asks to confirm "
-        "first; without a terminal to ask on, pass --yes.",
+        description="Deletes an activity from Garmin Connect without asking. "
+        "--dry-run shows what would be deleted.",
     )
     delete_parser.add_argument(
         "id", type=activity_id, help="activity ID from 'garmin activities'"
     )
     delete_parser.add_argument(
-        "--yes", action="store_true", help="delete without asking to confirm"
+        "--dry-run", action="store_true", help="show the activity, delete nothing"
     )
-    delete_parser.set_defaults(run=delete_activity, parser=delete_parser)
+    delete_parser.set_defaults(run=delete_activity)
