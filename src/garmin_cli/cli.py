@@ -17,7 +17,16 @@ from garminconnect import (
     GarminConnectTooManyRequestsError,
 )
 
-from garmin_cli import activities, auth, health, sleep, sleep_set, stats, weight_add
+from garmin_cli import (
+    activities,
+    activity_add,
+    auth,
+    health,
+    sleep,
+    sleep_set,
+    stats,
+    weight_add,
+)
 from garmin_cli.client import Connect
 from garmin_cli.errors import GarminCliError
 
@@ -169,8 +178,9 @@ def build_parser() -> CliParser:
     sleep.register(subparsers)
     sleep_set.register(subparsers)
     activities.register(subparsers)
+    activity_add.register(subparsers)
     stats.register(subparsers)
-    # The default names every choice, `sleep set` too.
+    # The default names every choice, `sleep set` and `activity add` too.
     subparsers.metavar = f"{{{','.join(parser.listed)}}}"
     return parser
 
@@ -179,12 +189,13 @@ def main(argv: list[str] | None = None, connect: Connect = auth.connect) -> int:
     parser = build_parser()
     if argv is None:
         argv = sys.argv[1:]
-    # `garmin sleep set` is registered as the one command `sleep set`. Top-level
-    # options take no value, so the first other argument is the command.
+    # `garmin sleep set` and `garmin activity add` are registered as the one
+    # commands `sleep set` and `activity add`. Top-level options take no value, so
+    # the first other argument is the command.
     for index, arg in enumerate(argv):
         if not arg.startswith("-"):
-            if argv[index : index + 2] == ["sleep", "set"]:
-                argv = [*argv[:index], "sleep set", *argv[index + 2 :]]
+            if (command := " ".join(argv[index : index + 2])) in parser.commands:
+                argv = [*argv[:index], command, *argv[index + 2 :]]
             break
     args, extras = parser.parse_known_args(argv)
     if extras:
