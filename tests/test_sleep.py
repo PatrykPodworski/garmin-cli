@@ -147,3 +147,4 @@ def test_sleep_help_documents_both_dates(capsys: pytest.CaptureFixture[str]) -> 
     help = capsys.readouterr().out
     assert "wake-up" in help
     assert "--night-of" in help
+    assert "'garmin sleep set' moves" in " ".join(help.split())

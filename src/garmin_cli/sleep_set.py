@@ -48,10 +48,10 @@ def set_sleep(args: argparse.Namespace, connect: Connect) -> Any:
 
 
 def register(subparsers: "argparse._SubParsersAction[argparse.ArgumentParser]") -> None:
-    # `main` joins `garmin sleep set` into this one command name.
+    # `main` joins `garmin sleep set` into this one command name. Without a `help`,
+    # `garmin --help` leaves it out; `garmin sleep --help` names it.
     set_parser = subparsers.add_parser(
         "sleep set",
-        help="move one night's sleep start and end on Garmin Connect",
         description="Like 'Adjust sleep times' in the Garmin Connect app. `date` "
         "is the wake-up date, as in 'garmin sleep'. Times are local HH:MM; the end "
         "is on the wake-up date, and a start later than the end is on the evening "

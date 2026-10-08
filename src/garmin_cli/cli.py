@@ -33,11 +33,24 @@ class CliParser(argparse.ArgumentParser):
         super().__init__(**{**kwargs, "allow_abbrev": False})
 
     @property
-    def commands(self) -> Mapping[str, argparse.ArgumentParser]:
+    def subparsers(
+        self,
+    ) -> "argparse._SubParsersAction[argparse.ArgumentParser] | None":
         for action in self._actions:
             if isinstance(action, argparse._SubParsersAction):
-                return cast("Mapping[str, argparse.ArgumentParser]", action.choices)
-        return {}
+                return action
+        return None
+
+    @property
+    def commands(self) -> Mapping[str, argparse.ArgumentParser]:
+        return self.subparsers.choices if self.subparsers else {}
+
+    @property
+    def listed(self) -> list[str]:
+        """The commands `--help` lists: those registered with a `help`."""
+        if not self.subparsers:
+            return []
+        return [action.dest for action in self.subparsers._get_subactions()]
 
     def fail(self, message: str) -> NoReturn:
         self.exit(2, f"garmin: {message}\n")
@@ -55,14 +68,15 @@ class CliParser(argparse.ArgumentParser):
             return f"Option '{option}' needs a value. Run '{self.prog} --help'."
         if value := re.match(r"ignored explicit argument '(.*)'", detail):
             return f"Option '{option}' takes no value. Remove '={value[1]}'."
-        if self.commands and (choice := re.match(r"invalid choice: '(.*?)'", detail)):
+        if self.listed and (choice := re.match(r"invalid choice: '(.*?)'", detail)):
             name = choice[1]
-            if match := difflib.get_close_matches(name, self.commands):
+            if match := difflib.get_close_matches(name, self.listed):
                 return f"Unknown command '{name}'. Did you mean '{match[0]}'?"
             return f"Unknown command '{name}'. {self.run_command()}"
         if detail.startswith(REQUIRED):
             name = detail.removeprefix(REQUIRED)
-            if name == "command":
+            # argparse names the command argument by its metavar.
+            if self.subparsers and name == self.subparsers.metavar:
                 return f"No command given. {self.run_command()}"
             if name == "id":
                 return (
@@ -82,7 +96,7 @@ class CliParser(argparse.ArgumentParser):
         return f"{message[0].upper()}{message[1:]}. Run '{self.prog} --help'."
 
     def run_command(self) -> str:
-        return f"Run '{self.prog} <command>', one of: {', '.join(self.commands)}."
+        return f"Run '{self.prog} <command>', one of: {', '.join(self.listed)}."
 
     def reject(self, argv: list[str], args: argparse.Namespace, arg: str) -> NoReturn:
         """Reports an argument the parser of the parsed command did not consume."""
@@ -156,6 +170,8 @@ def build_parser() -> CliParser:
     sleep_set.register(subparsers)
     activities.register(subparsers)
     stats.register(subparsers)
+    # The default names every choice, `sleep set` too.
+    subparsers.metavar = f"{{{','.join(parser.listed)}}}"
     return parser
 
 
