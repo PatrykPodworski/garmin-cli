@@ -17,7 +17,7 @@ from garminconnect import (
     GarminConnectTooManyRequestsError,
 )
 
-from garmin_cli import activities, auth, health, sleep, stats
+from garmin_cli import activities, auth, health, sleep, sleep_set, stats, weight_add
 from garmin_cli.client import Connect
 from garmin_cli.errors import GarminCliError
 
@@ -151,8 +151,9 @@ def build_parser() -> CliParser:
         parser.add_subparsers(dest="command", required=True),
     )
     auth.register(subparsers)
-    health.register(subparsers)
+    weight_add.register(health.register(subparsers))
     sleep.register(subparsers)
+    sleep_set.register(subparsers)
     activities.register(subparsers)
     stats.register(subparsers)
     return parser

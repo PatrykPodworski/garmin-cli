@@ -12,6 +12,12 @@ This repository is public. Never commit real Garmin data.
   Never print them in logs or error messages.
 - Command output pasted into issues or PRs follows the same rule.
 
+## Modules
+
+Read commands are grouped by domain, one module per group (`health.py`, `sleep.py`, …).
+A command that changes Garmin data gets its own module, named `<group>_<verb>.py`, and
+imports shared read helpers from its group. Time and date conversion lives in `dates.py`.
+
 ## Testing
 
 - Tests never touch the network. Pass a fake client to `main` through its
