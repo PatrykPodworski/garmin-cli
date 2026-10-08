@@ -118,7 +118,10 @@ def register(subparsers: "argparse._SubParsersAction[argparse.ArgumentParser]") 
     )
     activities_parser.set_defaults(run=activities)
     activity_parser = subparsers.add_parser(
-        "activity", help="one activity with laps and HR zones"
+        "activity",
+        help="one activity with laps and HR zones",
+        epilog="'garmin activity add' creates a manual activity on Garmin Connect. "
+        "Run 'garmin activity add --help' for its options.",
     )
     activity_parser.add_argument("id")
     activity_parser.add_argument(

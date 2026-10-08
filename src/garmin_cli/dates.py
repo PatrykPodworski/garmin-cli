@@ -1,5 +1,9 @@
 import argparse
+import os
 from datetime import UTC, date, datetime, time, timedelta
+from pathlib import Path
+
+LOCALTIME = Path("/etc/localtime")
 
 
 def parse_date(value: str) -> date:
@@ -33,6 +37,28 @@ def parse_time(value: str) -> time:
         raise argparse.ArgumentTypeError(
             f"Invalid time '{value}'. Use HH:MM, for example 23:10."
         ) from None
+
+
+def parse_datetime(value: str) -> datetime:
+    try:
+        return datetime.strptime(value, "%Y-%m-%d %H:%M")
+    except ValueError:
+        raise argparse.ArgumentTypeError(
+            f"Invalid time '{value}'. Use 'YYYY-MM-DD HH:MM', "
+            "for example '2026-07-05 18:30'."
+        ) from None
+
+
+def local_time_zone() -> str | None:
+    """The machine's IANA time zone name: `TZ`, else the zoneinfo path that
+    /etc/localtime links to."""
+    if name := os.environ.get("TZ"):
+        return name
+    try:
+        target = str(LOCALTIME.readlink())
+    except OSError:
+        return None
+    return target.partition("zoneinfo/")[2] or None
 
 
 def add_date_argument(parser: argparse._ActionsContainer) -> None:

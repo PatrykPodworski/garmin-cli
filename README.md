@@ -232,6 +232,24 @@ One activity by the `id` from `garmin activities`. It has the same keys as an
 `activities` item, plus `laps` (the same keys per lap, without `type`) and
 `hr_zones` (seconds spent in each zone and the zone's lower bound in bpm).
 
+### activity add
+
+```sh
+garmin activity add --type strength_training --start "2026-07-05 18:30" --duration 45
+garmin activity add --type running --start "2026-07-05 07:00" --duration 30 --distance 5.2 --name "Park run"
+garmin activity add --type walking --start "2026-07-05 12:00" --duration 65 --distance 4.3 --calories 266.7
+```
+
+Creates a private manual activity on Garmin Connect, for example a gym session or a
+run without a watch, then prints it as `garmin activity` does. `--type` is a Garmin
+type key such as `running`, `cycling` or `strength_training`; an unknown key exits
+with status 2 and suggests the closest one. `--start` is local
+`YYYY-MM-DD HH:MM`, `--duration` whole minutes, and `--distance` kilometers
+(default 0). `--calories` sets the kilocalories, a number above 0; without it
+Garmin estimates them, often far below its web form's value. `--name` defaults to the type, like `Strength Training`. The time zone
+is the machine's, from `TZ` or the `/etc/localtime` link; `--tz Europe/Warsaw`
+overrides it, and a machine without one exits with status 2 and asks for `--tz`.
+
 ## Raw output
 
 `stats`, `sleep`, `weight`, `bp`, `activities` and `activity` accept `--raw`. It
