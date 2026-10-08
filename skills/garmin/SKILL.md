@@ -1,15 +1,16 @@
 ---
 name: garmin
-description: Use when the user asks about their Garmin data — workouts (runs, rides), sleep or sleep score, weight, body fat, blood pressure, calories burned, resting heart rate, body battery or stress.
+description: Use when the user asks about their Garmin data — workouts (runs, rides), sleep or sleep score, weight, body fat, blood pressure, calories burned, resting heart rate, body battery or stress — or asks to adjust a night's sleep times or log a weigh-in.
 ---
 
 # garmin
 
 `garmin` reads the user's Garmin Connect data and prints JSON. Run it with Bash.
+Two commands change data: `garmin weight add` and `garmin sleep set`.
 
 ## Login
 
-The user logs in; you only read. A command that exits 1 with `Not logged in` means
+The user logs in, not you. A command that exits 1 with `Not logged in` means
 the saved login is missing or expired: ask the user to run `garmin login` in their
 own terminal, because it reads their Keychain password and may ask for an MFA code.
 Leave the token folder (`~/.garminconnect` or `$GARMINTOKENS`) unread.
@@ -22,6 +23,7 @@ Every date takes `today`, `yesterday` or `YYYY-MM-DD`.
 garmin stats [DATE]                    # calories, resting HR, body battery, stress (default today)
 garmin sleep [DATE]                    # the night that ended on the morning of DATE (default today)
 garmin sleep --night-of DATE           # the night that started on the evening of DATE
+garmin sleep set DATE --start HH:MM --end HH:MM  # move that night's sleep window (local times)
 garmin weight --from DATE --to DATE    # weigh-ins and body composition (both default today)
 garmin weight add KG [--at "YYYY-MM-DD HH:MM"] [--unit lbs]  # log a weigh-in (default now, kg)
 garmin bp --from DATE --to DATE        # blood pressure readings (both default today)
@@ -36,6 +38,9 @@ garmin activity ID                     # one activity with laps and HR zones; ID
 - Sleep is filed under the wake-up date. "Last night" is `garmin sleep`. Asked after
   midnight, before the user has gone to sleep, "last night" is `garmin sleep yesterday`.
   "The night of the 4th" is `garmin sleep --night-of 2026-07-04`.
+- `garmin sleep set` writes to the user's Garmin account. Run it only with the date
+  and both times the user gave you. It takes the same DATE or `--night-of DATE` as
+  `garmin sleep`.
 - `garmin weight add` writes to the user's Garmin account. Run it only with a weight
   the user gave you. After a failed run, check `garmin weight` before retrying, so the
   weigh-in is not logged twice.
