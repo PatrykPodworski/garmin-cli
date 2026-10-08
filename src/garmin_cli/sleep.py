@@ -79,6 +79,9 @@ def register(subparsers: "argparse._SubParsersAction[argparse.ArgumentParser]") 
         description="Garmin files a night under its wake-up date: `date` is the "
         "morning you woke up. --night-of DATE takes the lights-out date instead "
         "and shows the night that started on DATE.",
+        # `date` takes any first argument, so `set` cannot be a subparser.
+        epilog="'garmin sleep set' moves one night's sleep start and end on Garmin "
+        "Connect. Run 'garmin sleep set --help' for its options.",
     )
     add_night_arguments(sleep_parser)
     sleep_parser.add_argument(
