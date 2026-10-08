@@ -1,7 +1,7 @@
 # garmin-cli
 
-`garmin` reads your Garmin Connect data and prints it as JSON. Scripts, agents and
-people at a terminal can use it. It wraps
+`garmin` reads your Garmin Connect data and prints it as JSON. It can also adjust a
+night's sleep times. Scripts, agents and people at a terminal can use it. It wraps
 [python-garminconnect](https://github.com/cyberjunky/python-garminconnect).
 
 ## Install
@@ -99,6 +99,21 @@ you woke up. `--night-of DATE` takes the date you went to bed and queries DATE+1
 stages are `null` when Garmin has no value. `score` is the overall sleep score, and
 `scores` holds the sub-scores, each with `value` and `qualifier`. A night that has
 not synced yet exits with status 1.
+
+### sleep set
+
+```sh
+garmin sleep set 2026-07-05 --start 23:10 --end 06:45             # by the wake-up date
+garmin sleep set --night-of 2026-07-04 --start 23:10 --end 06:45  # by the lights-out date
+```
+
+Moves a night's sleep window on Garmin Connect, like "Adjust sleep times" in the
+Garmin Connect app, then prints the night as `garmin sleep` does. The date works as
+in `garmin sleep` and defaults to today. `--start` and `--end` are both required,
+in local `HH:MM`. The end is on the wake-up date; a start earlier than the end is on
+the same date, and a later one is on the evening before. Garmin Connect recomputes
+the sleep stages at once, but the sleep score may update later. A start equal to
+the end exits with status 2, and a night that has not synced exits with status 1.
 
 ### weight
 
@@ -233,6 +248,7 @@ Messages for status 1:
 | `stats` day not synced | `garmin: No daily summary for <date> yet. Sync your watch with Garmin Connect, then try again.` |
 | `sleep` night not synced | `garmin: No sleep data for the night ending <date> yet. Sync your watch with Garmin Connect, or use --night-of if <date> is the night you went to bed.` |
 | `sleep --night-of` night not synced | `garmin: No sleep data for the night of <date> yet. Sync your watch with Garmin Connect, then try again.` |
+| `sleep set` night has no time zone | `garmin: Garmin Connect sent no time zone for the night ending <date>, so garmin-cli cannot convert the times. Adjust the sleep times in the Garmin Connect app.` |
 | `activity <id>` not found | `garmin: No activity with ID <id>. Run 'garmin activities' to list recent IDs.` |
 | Rate limit | `garmin: Garmin is rate-limiting requests from this machine. Wait a few minutes and try again.` |
 | Tokens expired | `garmin: Not logged in: no valid saved login in ~/.garminconnect. Run 'garmin login'.` |

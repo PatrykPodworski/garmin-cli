@@ -1,15 +1,16 @@
 ---
 name: garmin
-description: Use when the user asks about their Garmin data — workouts (runs, rides), sleep or sleep score, weight, body fat, blood pressure, calories burned, resting heart rate, body battery or stress.
+description: Use when the user asks about their Garmin data — workouts (runs, rides), sleep or sleep score, weight, body fat, blood pressure, calories burned, resting heart rate, body battery or stress — or asks to adjust a night's sleep times.
 ---
 
 # garmin
 
-`garmin` reads the user's Garmin Connect data and prints JSON. Run it with Bash.
+`garmin` reads the user's Garmin Connect data and prints JSON. `garmin sleep set` is
+its one command that changes data. Run it with Bash.
 
 ## Login
 
-The user logs in; you only read. A command that exits 1 with `Not logged in` means
+The user logs in, not you. A command that exits 1 with `Not logged in` means
 the saved login is missing or expired: ask the user to run `garmin login` in their
 own terminal, because it reads their Keychain password and may ask for an MFA code.
 Leave the token folder (`~/.garminconnect` or `$GARMINTOKENS`) unread.
@@ -22,6 +23,7 @@ Every date takes `today`, `yesterday` or `YYYY-MM-DD`.
 garmin stats [DATE]                    # calories, resting HR, body battery, stress (default today)
 garmin sleep [DATE]                    # the night that ended on the morning of DATE (default today)
 garmin sleep --night-of DATE           # the night that started on the evening of DATE
+garmin sleep set DATE --start HH:MM --end HH:MM  # move that night's sleep window (local times)
 garmin weight --from DATE --to DATE    # weigh-ins and body composition (both default today)
 garmin bp --from DATE --to DATE        # blood pressure readings (both default today)
 garmin activities --limit 5 --type running --from DATE --to DATE  # newest first, default limit 20
@@ -35,6 +37,9 @@ garmin activity ID                     # one activity with laps and HR zones; ID
 - Sleep is filed under the wake-up date. "Last night" is `garmin sleep`. Asked after
   midnight, before the user has gone to sleep, "last night" is `garmin sleep yesterday`.
   "The night of the 4th" is `garmin sleep --night-of 2026-07-04`.
+- `garmin sleep set` changes the user's Garmin Connect data. Run it only when the
+  user asks to change their sleep times, with the date and both times they gave.
+  It takes the same DATE or `--night-of DATE` as `garmin sleep`.
 - Summary floats are rounded to two decimals. Quote them as printed.
 - Start with the summary. Add `--raw` only when the field you need is missing from it:
   raw output is the full Garmin response, many times larger.

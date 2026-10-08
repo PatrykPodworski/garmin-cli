@@ -52,9 +52,9 @@ fail_under = 90
 [tool.vulture]
 paths = ["src", "tests"]
 min_confidence = 60
-# A keyword parameter of the GarminClient protocol; vulture does not count
-# keyword arguments at call sites as uses.
-ignore_names = ["activitytype"]
+# Keyword parameters of the client protocols; vulture does not count keyword
+# arguments at call sites as uses.
+ignore_names = ["activitytype", "api"]
 
 [tool.mutmut]
 source_paths = ["src/"]

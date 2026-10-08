@@ -66,12 +66,13 @@ class CliParser(argparse.ArgumentParser):
                     "then 'garmin activity <id>'."
                 )
             return f"Missing {name} for '{self.prog}'. Run '{self.prog} --help'."
-        # ponytail: only `garmin sleep` has mutually exclusive arguments; name
-        # them from the message once a second command gets a group.
+        # ponytail: only `garmin sleep` and `garmin sleep set` have mutually
+        # exclusive arguments, the same pair; name them from the message once
+        # another pair appears.
         if detail.startswith("not allowed with argument "):
             return (
-                "Give either a date or --night-of, not both. Use 'garmin sleep DATE' "
-                "for the wake-up date or 'garmin sleep --night-of DATE' for the "
+                f"Give either a date or --night-of, not both. Use '{self.prog} DATE' "
+                f"for the wake-up date or '{self.prog} --night-of DATE' for the "
                 "lights-out date."
             )
         return f"{message[0].upper()}{message[1:]}. Run '{self.prog} --help'."
@@ -153,6 +154,13 @@ def main(argv: list[str] | None = None, connect: Connect = auth.connect) -> int:
     parser = build_parser()
     if argv is None:
         argv = sys.argv[1:]
+    # `garmin sleep set` is registered as the one command `sleep set`. Top-level
+    # options take no value, so the first other argument is the command.
+    for index, arg in enumerate(argv):
+        if not arg.startswith("-"):
+            if argv[index : index + 2] == ["sleep", "set"]:
+                argv = [*argv[:index], "sleep set", *argv[index + 2 :]]
+            break
     args, extras = parser.parse_known_args(argv)
     if extras:
         parser.reject(argv, args.command, extras[0])

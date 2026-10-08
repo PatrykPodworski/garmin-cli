@@ -38,7 +38,7 @@ def test_subcommand_help_exits_0(capsys: pytest.CaptureFixture[str]) -> None:
     assert capsys.readouterr().out.startswith("usage: garmin sleep")
 
 
-COMMANDS = "login, weight, bp, sleep, activities, activity, stats"
+COMMANDS = "login, weight, bp, sleep, sleep set, activities, activity, stats"
 SLEEP_HELP = "Run 'garmin sleep --help' for all options."
 INVALID_DATE = "Use today, yesterday or YYYY-MM-DD."
 INVALID_LIMIT = "Use a whole number of 1 or more."

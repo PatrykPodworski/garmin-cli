@@ -2,8 +2,18 @@ from collections.abc import Callable
 from typing import Any, Protocol
 
 
+class HttpClient(Protocol):
+    """The `garminconnect.Garmin.client` methods for endpoints `Garmin` lacks."""
+
+    def put(
+        self, _domain: str, _path: str, /, *, json: dict[str, Any], api: bool
+    ) -> Any: ...
+
+
 class GarminClient(Protocol):
     """The `garminconnect.Garmin` methods the subcommands call."""
+
+    client: HttpClient
 
     def get_stats(self, _cdate: str, /) -> dict[str, Any]: ...
 
