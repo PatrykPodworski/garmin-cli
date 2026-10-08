@@ -1,5 +1,5 @@
 import argparse
-from datetime import UTC, date, datetime, timedelta
+from datetime import UTC, date, datetime, time, timedelta
 
 
 def parse_date(value: str) -> date:
@@ -18,6 +18,21 @@ def parse_date(value: str) -> date:
 def wall_clock(timestamp_ms: int) -> datetime:
     # Garmin "Local" timestamps hold the wall-clock time encoded as UTC.
     return datetime.fromtimestamp(timestamp_ms / 1000, UTC)
+
+
+def gmt_ms(local: datetime, offset_ms: int) -> int:
+    """Epoch ms in GMT of `local`, a wall-clock time encoded as UTC that is
+    `offset_ms` ahead of GMT."""
+    return int(local.timestamp()) * 1000 - offset_ms
+
+
+def parse_time(value: str) -> time:
+    try:
+        return datetime.strptime(value, "%H:%M").time()
+    except ValueError:
+        raise argparse.ArgumentTypeError(
+            f"Invalid time '{value}'. Use HH:MM, for example 23:10."
+        ) from None
 
 
 def add_date_argument(parser: argparse._ActionsContainer) -> None:
