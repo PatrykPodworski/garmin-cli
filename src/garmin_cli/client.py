@@ -41,15 +41,8 @@ class GarminClient(Protocol):
 
     def get_activity_types(self) -> list[dict[str, Any]]: ...
 
-    def create_manual_activity(
-        self,
-        _start_datetime: str,
-        _time_zone: str,
-        _type_key: str,
-        _distance_km: float,
-        _duration_min: int,
-        _activity_name: str,
-        /,
+    def create_manual_activity_from_json(
+        self, _payload: dict[str, Any], /
     ) -> dict[str, Any]: ...
 
     def get_activity_hr_in_timezones(

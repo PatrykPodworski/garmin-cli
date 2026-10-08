@@ -33,6 +33,18 @@ def kilometers(value: str) -> float:
     return number
 
 
+def kilocalories(value: str) -> float:
+    try:
+        number = float(value)
+    except ValueError:
+        number = math.nan
+    if not (math.isfinite(number) and number > 0):
+        raise argparse.ArgumentTypeError(
+            f"Invalid --calories '{value}'. Use kilocalories, more than 0, like 266.7."
+        )
+    return number
+
+
 def add_activity(args: argparse.Namespace, connect: Connect) -> Any:
     time_zone = args.tz or local_time_zone() or ""
     if not time_zone:
@@ -57,15 +69,26 @@ def add_activity(args: argparse.Namespace, connect: Connect) -> Any:
             f"{problem} Use a Garmin type key, like running, cycling or "
             "strength_training."
         )
-    created = client.create_manual_activity(
-        args.start.isoformat(timespec="milliseconds"),
-        time_zone,
-        args.type,
-        args.distance,
-        args.duration,
-        # ponytail: the type key title-cased, close to Garmin's display names;
-        # read the names from Garmin if one turns out wrong.
-        args.name or args.type.replace("_", " ").title(),
+    # The payload of garminconnect's `create_manual_activity`, which cannot send
+    # calories: without them Garmin estimates far fewer than its web form does.
+    summary: dict[str, Any] = {
+        "startTimeLocal": args.start.isoformat(timespec="milliseconds"),
+        "distance": args.distance * 1000,
+        "duration": args.duration * 60,
+    }
+    if args.calories is not None:
+        summary["calories"] = args.calories
+    created = client.create_manual_activity_from_json(
+        {
+            "activityTypeDTO": {"typeKey": args.type},
+            "accessControlRuleDTO": {"typeId": 2, "typeKey": "private"},
+            "timeZoneUnitDTO": {"unitKey": time_zone},
+            # ponytail: the type key title-cased, close to Garmin's display names;
+            # read the names from Garmin if one turns out wrong.
+            "activityName": args.name or args.type.replace("_", " ").title(),
+            "metadataDTO": {"autoCalcCalories": args.calories is None},
+            "summaryDTO": summary,
+        }
     )
     shown = argparse.Namespace(id=str(created["activityId"]), raw=False)
     return activity(shown, lambda: client)
@@ -96,6 +119,12 @@ def register(subparsers: "argparse._SubParsersAction[argparse.ArgumentParser]") 
     )
     add_parser.add_argument(
         "--distance", type=kilometers, default=0.0, help="kilometers (default: 0)"
+    )
+    add_parser.add_argument(
+        "--calories",
+        type=kilocalories,
+        metavar="KCAL",
+        help="kilocalories burned (default: Garmin's estimate)",
     )
     add_parser.add_argument(
         "--name", help="activity name (default: the type, like 'Strength Training')"

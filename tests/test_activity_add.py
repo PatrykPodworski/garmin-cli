@@ -1,9 +1,10 @@
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
 import pytest
 from conftest import FakeClient, run_json
-from garminconnect import GarminConnectConnectionError
+from garminconnect import Garmin, GarminConnectConnectionError
 from test_activities import activity_client
 
 from garmin_cli import dates
@@ -26,15 +27,20 @@ def add_client(created: Any = None) -> FakeClient:
     client = activity_client()
     client.responses.update(
         get_activity_types=TYPES,
-        create_manual_activity={"activityId": 101} if created is None else created,
+        create_manual_activity_from_json=(
+            {"activityId": 101} if created is None else created
+        ),
     )
     return client
 
 
-def create_call(client: FakeClient) -> tuple[Any, ...]:
-    calls = [call for call in client.calls if call[0] == "create_manual_activity"]
+def create_call(client: FakeClient) -> dict[str, Any]:
+    calls = [
+        call for call in client.calls if call[0] == "create_manual_activity_from_json"
+    ]
     assert len(calls) == 1
-    return calls[0][1]
+    payload: dict[str, Any] = calls[0][1][0]
+    return payload
 
 
 def run_error(
@@ -56,20 +62,31 @@ def test_activity_add_creates_and_prints_the_activity(
 
     result = run_json([*ARGS, "--duration", "45", "--distance", "5.2"], client, capsys)
 
+    payload = {
+        "activityTypeDTO": {"typeKey": "strength_training"},
+        "accessControlRuleDTO": {"typeId": 2, "typeKey": "private"},
+        "timeZoneUnitDTO": {"unitKey": "Europe/Warsaw"},
+        "activityName": "Strength Training",
+        "metadataDTO": {"autoCalcCalories": True},
+        "summaryDTO": {
+            "startTimeLocal": "2026-07-05T18:30:00.000",
+            "distance": 5200.0,
+            "duration": 2700,
+        },
+    }
+    library = Garmin.create_manual_activity(
+        SimpleNamespace(create_manual_activity_from_json=lambda payload: payload),
+        "2026-07-05T18:30:00.000",
+        "Europe/Warsaw",
+        "strength_training",
+        5.2,
+        45,
+        "Strength Training",
+    )
+    assert payload == library
     assert client.calls[:2] == [
         ("get_activity_types", (), {}),
-        (
-            "create_manual_activity",
-            (
-                "2026-07-05T18:30:00.000",
-                "Europe/Warsaw",
-                "strength_training",
-                5.2,
-                45,
-                "Strength Training",
-            ),
-            {},
-        ),
+        ("create_manual_activity_from_json", (payload,), {}),
     ]
     assert client.calls[2] == ("get_activity", ("101",), {})
     assert result["id"] == 101
@@ -84,7 +101,10 @@ def test_activity_add_takes_name_zero_distance_and_one_minute(
     argv = [*ARGS, "--duration", "1", "--distance", "0", "--name", "Gym"]
     run_json(argv, client, capsys)
 
-    assert create_call(client)[3:] == (0.0, 1, "Gym")
+    payload = create_call(client)
+    assert payload["summaryDTO"]["distance"] == 0
+    assert payload["summaryDTO"]["duration"] == 60
+    assert payload["activityName"] == "Gym"
 
 
 def test_activity_add_distance_defaults_to_zero(
@@ -94,7 +114,25 @@ def test_activity_add_distance_defaults_to_zero(
 
     run_json([*ARGS, "--duration", "45"], client, capsys)
 
-    assert create_call(client)[3] == 0
+    assert create_call(client)["summaryDTO"]["distance"] == 0
+
+
+@pytest.mark.parametrize(("value", "calories"), [("266.7", 266.7), ("0.5", 0.5)])
+def test_activity_add_sends_calories(
+    capsys: pytest.CaptureFixture[str], value: str, calories: float
+) -> None:
+    client = add_client()
+
+    run_json([*ARGS, "--duration", "65", "--calories", value], client, capsys)
+
+    payload = create_call(client)
+    assert payload["metadataDTO"] == {"autoCalcCalories": False}
+    assert payload["summaryDTO"] == {
+        "startTimeLocal": "2026-07-05T18:30:00.000",
+        "distance": 0.0,
+        "duration": 3900,
+        "calories": calories,
+    }
 
 
 def test_activity_add_time_zone_from_tz_option(
@@ -104,7 +142,7 @@ def test_activity_add_time_zone_from_tz_option(
 
     run_json([*ARGS, "--duration", "45", "--tz", "America/New_York"], client, capsys)
 
-    assert create_call(client)[1] == "America/New_York"
+    assert create_call(client)["timeZoneUnitDTO"]["unitKey"] == "America/New_York"
 
 
 def test_activity_add_time_zone_from_localtime_symlink(
@@ -116,7 +154,7 @@ def test_activity_add_time_zone_from_localtime_symlink(
 
     run_json([*ARGS, "--duration", "45"], client, capsys)
 
-    assert create_call(client)[1] == "Asia/Tokyo"
+    assert create_call(client)["timeZoneUnitDTO"]["unitKey"] == "Asia/Tokyo"
 
 
 def test_activity_add_empty_tz_falls_back_to_symlink(
@@ -128,7 +166,7 @@ def test_activity_add_empty_tz_falls_back_to_symlink(
 
     run_json([*ARGS, "--duration", "45"], client, capsys)
 
-    assert create_call(client)[1] == "Europe/Lisbon"
+    assert create_call(client)["timeZoneUnitDTO"]["unitKey"] == "Europe/Lisbon"
 
 
 NO_TIME_ZONE = (
@@ -225,6 +263,22 @@ def test_activity_add_unknown_type_exits_2(
             ["--distance", "inf"],
             "Invalid --distance 'inf'. Use kilometers, 0 or more, like 5.2.",
         ),
+        (
+            ["--calories", "0"],
+            "Invalid --calories '0'. Use kilocalories, more than 0, like 266.7.",
+        ),
+        (
+            ["--calories", "-5"],
+            "Invalid --calories '-5'. Use kilocalories, more than 0, like 266.7.",
+        ),
+        (
+            ["--calories", "x"],
+            "Invalid --calories 'x'. Use kilocalories, more than 0, like 266.7.",
+        ),
+        (
+            ["--calories", "inf"],
+            "Invalid --calories 'inf'. Use kilocalories, more than 0, like 266.7.",
+        ),
     ],
 )
 def test_activity_add_invalid_argument_exits_2(
@@ -266,7 +320,7 @@ def test_activity_add_after_debug_flag(capsys: pytest.CaptureFixture[str]) -> No
 
     run_json(["--debug", *ARGS, "--duration", "45"], client, capsys)
 
-    assert create_call(client)[2] == "strength_training"
+    assert create_call(client)["activityTypeDTO"]["typeKey"] == "strength_training"
 
 
 def test_activity_id_still_shows_one_activity(
