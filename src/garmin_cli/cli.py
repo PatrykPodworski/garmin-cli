@@ -29,11 +29,15 @@ class CliParser(argparse.ArgumentParser):
     """Reports an argument error on one stderr line, `garmin: <problem> <action>`,
     instead of a usage block."""
 
-    # Only the top-level parser has commands.
-    commands: Mapping[str, argparse.ArgumentParser] = {}
-
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**{**kwargs, "allow_abbrev": False})
+
+    @property
+    def commands(self) -> Mapping[str, argparse.ArgumentParser]:
+        for action in self._actions:
+            if isinstance(action, argparse._SubParsersAction):
+                return cast("Mapping[str, argparse.ArgumentParser]", action.choices)
+        return {}
 
     def fail(self, message: str) -> NoReturn:
         self.exit(2, f"garmin: {message}\n")
@@ -77,11 +81,16 @@ class CliParser(argparse.ArgumentParser):
         return f"{message[0].upper()}{message[1:]}. Run '{self.prog} --help'."
 
     def run_command(self) -> str:
-        return f"Run 'garmin <command>', one of: {', '.join(self.commands)}."
+        return f"Run '{self.prog} <command>', one of: {', '.join(self.commands)}."
 
-    def reject(self, argv: list[str], command: str, arg: str) -> NoReturn:
-        """Reports an argument the parser of `command` did not consume."""
+    def reject(self, argv: list[str], args: argparse.Namespace, arg: str) -> NoReturn:
+        """Reports an argument the parser of the parsed command did not consume."""
+        command = args.command
         subparser = self.commands[command]
+        # `garmin weight add` is the only nested command.
+        if getattr(args, "subcommand", None):
+            command = args.subcommand
+            subparser = cast(CliParser, subparser).commands[command]
         prog = subparser.prog
         help = f"Run '{prog} --help' for all options."
         if not arg.startswith("-"):
@@ -145,7 +154,6 @@ def build_parser() -> CliParser:
     sleep.register(subparsers)
     activities.register(subparsers)
     stats.register(subparsers)
-    parser.commands = subparsers.choices
     return parser
 
 
@@ -155,7 +163,7 @@ def main(argv: list[str] | None = None, connect: Connect = auth.connect) -> int:
         argv = sys.argv[1:]
     args, extras = parser.parse_known_args(argv)
     if extras:
-        parser.reject(argv, args.command, extras[0])
+        parser.reject(argv, args, extras[0])
     try:
         result = args.run(args, connect)
     except GarminCliError as error:
