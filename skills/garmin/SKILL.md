@@ -23,6 +23,7 @@ garmin stats [DATE]                    # calories, resting HR, body battery, str
 garmin sleep [DATE]                    # the night that ended on the morning of DATE (default today)
 garmin sleep --night-of DATE           # the night that started on the evening of DATE
 garmin weight --from DATE --to DATE    # weigh-ins and body composition (both default today)
+garmin weight add KG [--at "YYYY-MM-DD HH:MM"] [--unit lbs]  # log a weigh-in (default now, kg)
 garmin bp --from DATE --to DATE        # blood pressure readings (both default today)
 garmin activities --limit 5 --type running --from DATE --to DATE  # newest first, default limit 20
 garmin activity ID                     # one activity with laps and HR zones; ID from `activities`
@@ -35,6 +36,9 @@ garmin activity ID                     # one activity with laps and HR zones; ID
 - Sleep is filed under the wake-up date. "Last night" is `garmin sleep`. Asked after
   midnight, before the user has gone to sleep, "last night" is `garmin sleep yesterday`.
   "The night of the 4th" is `garmin sleep --night-of 2026-07-04`.
+- `garmin weight add` writes to the user's Garmin account. Run it only with a weight
+  the user gave you. After a failed run, check `garmin weight` before retrying, so the
+  weigh-in is not logged twice.
 - Summary floats are rounded to two decimals. Quote them as printed.
 - Start with the summary. Add `--raw` only when the field you need is missing from it:
   raw output is the full Garmin response, many times larger.
