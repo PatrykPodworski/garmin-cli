@@ -21,6 +21,10 @@ class GarminClient(Protocol):
 
     def get_weigh_ins(self, _start: str, _end: str, /) -> dict[str, Any]: ...
 
+    def add_weigh_in(
+        self, _weight: float, _unit_key: str, _timestamp: str, /
+    ) -> dict[str, Any] | None: ...
+
     def get_blood_pressure(self, _start: str, _end: str, /) -> dict[str, Any]: ...
 
     def get_activities(

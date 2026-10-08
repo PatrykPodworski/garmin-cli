@@ -1,7 +1,7 @@
 # garmin-cli
 
-`garmin` reads your Garmin Connect data and prints it as JSON. It can also adjust a
-night's sleep times. Scripts, agents and people at a terminal can use it. It wraps
+`garmin` reads your Garmin Connect data and prints it as JSON. It can also log a
+weigh-in and adjust a night's sleep times. Scripts, agents and people at a terminal can use it. It wraps
 [python-garminconnect](https://github.com/cyberjunky/python-garminconnect).
 
 ## Install
@@ -137,6 +137,16 @@ garmin weight --from 2026-07-01 --to 2026-07-05
 
 One record per weigh-in, with local time. A scale that does not measure body
 composition leaves those fields `null`. A range with no weigh-ins prints `[]`.
+
+`weight add` logs a manual weigh-in and prints the record Garmin created.
+
+```sh
+garmin weight add 82.4                           # kg, now
+garmin weight add 181.5 --unit lbs
+garmin weight add 82.4 --at "2026-07-05 07:30"   # local time
+```
+
+`--at` takes only `YYYY-MM-DD HH:MM`, because a weigh-in needs a time.
 
 ### bp
 

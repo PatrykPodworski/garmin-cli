@@ -8,7 +8,8 @@ from garmin_cli.cli import main
 
 
 class FakeClient:
-    """Returns `responses[name]` for any `client.name(...)` and records the call."""
+    """Returns `responses[name]` for any `client.name(...)`, or raises it when it is
+    an exception, and records the call."""
 
     # `Garmin.client`, the HTTP client; a test sets it when the command uses it.
     client: Any
@@ -23,7 +24,10 @@ class FakeClient:
 
         def method(*args: Any, **kwargs: Any) -> Any:
             self.calls.append((name, args, kwargs))
-            return self.responses[name]
+            response = self.responses[name]
+            if isinstance(response, BaseException):
+                raise response
+            return response
 
         return method
 

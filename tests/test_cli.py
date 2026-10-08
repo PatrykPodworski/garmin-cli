@@ -42,6 +42,7 @@ COMMANDS = "login, weight, bp, sleep, sleep set, activities, activity, stats"
 SLEEP_HELP = "Run 'garmin sleep --help' for all options."
 INVALID_DATE = "Use today, yesterday or YYYY-MM-DD."
 INVALID_LIMIT = "Use a whole number of 1 or more."
+INVALID_WEIGHT = "Use a number above 0, like 82.4."
 CONFLICT = (
     "Give either a date or --night-of, not both. Use 'garmin sleep DATE' for the "
     "wake-up date or 'garmin sleep --night-of DATE' for the lights-out date."
@@ -104,6 +105,37 @@ CONFLICT = (
             ["--debug", "--raw", "sleep", "2026-07-05"],
             "Option '--raw' goes after the command. "
             "Run 'garmin --debug sleep --raw 2026-07-05'.",
+        ),
+        (["weight", "add", "0"], f"Invalid weight '0'. {INVALID_WEIGHT}"),
+        (["weight", "add", "-5"], f"Invalid weight '-5'. {INVALID_WEIGHT}"),
+        (["weight", "add", "x"], f"Invalid weight 'x'. {INVALID_WEIGHT}"),
+        (["weight", "add", "inf"], f"Invalid weight 'inf'. {INVALID_WEIGHT}"),
+        (
+            ["weight", "add", "82.4", "--at", "2026-07-05"],
+            "Invalid --at '2026-07-05'. Use 'YYYY-MM-DD HH:MM' in local time.",
+        ),
+        (
+            ["weight", "add", "82.4", "--unit", "st"],
+            "Invalid --unit 'st'. Use kg or lbs.",
+        ),
+        (
+            ["weight", "add"],
+            "Missing weight for 'garmin weight add'. Run 'garmin weight add --help'.",
+        ),
+        (["weight", "ad"], "Unknown command 'ad'. Did you mean 'add'?"),
+        (
+            ["weight", "82.4"],
+            "Unknown command '82.4'. Run 'garmin weight <command>', one of: add.",
+        ),
+        (
+            ["weight", "add", "82.4", "--from", "today"],
+            "Unknown option '--from' for 'garmin weight add'. "
+            "Run 'garmin weight add --help' for all options.",
+        ),
+        (
+            ["weight", "--unit=lbs", "add", "82.4"],
+            "Option '--unit=lbs' goes after the command. "
+            "Run 'garmin weight add --unit=lbs 82.4'.",
         ),
         (
             ["--limit=3", "activities"],
