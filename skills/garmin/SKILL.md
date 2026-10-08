@@ -1,13 +1,13 @@
 ---
 name: garmin
-description: Use when the user asks about their Garmin data — workouts (runs, rides), sleep or sleep score, weight, body fat, blood pressure, calories burned, resting heart rate, body battery or stress — or asks to adjust a night's sleep times, log a weigh-in or add a manual activity.
+description: Use when the user asks about their Garmin data — workouts (runs, rides), sleep or sleep score, weight, body fat, blood pressure, calories burned, resting heart rate, body battery or stress — or asks to adjust a night's sleep times, log a weigh-in, add a manual activity or delete an activity.
 ---
 
 # garmin
 
 `garmin` reads the user's Garmin Connect data and prints JSON. Run it with Bash.
-Three commands change data: `garmin weight add`, `garmin sleep set` and
-`garmin activity add`.
+Four commands change data: `garmin weight add`, `garmin sleep set`,
+`garmin activity add` and `garmin activity delete`.
 
 ## Login
 
@@ -31,6 +31,7 @@ garmin bp --from DATE --to DATE        # blood pressure readings (both default t
 garmin activities --limit 5 --type running --from DATE --to DATE  # newest first, default limit 20
 garmin activity ID                     # one activity with laps and HR zones; ID from `activities`
 garmin activity add --type KEY --start "YYYY-MM-DD HH:MM" --duration MIN [--distance KM] [--calories KCAL] [--name NAME]  # private manual activity
+garmin activity delete ID --yes        # delete an activity; ID from `activities`
 ```
 
 `garmin <command> --help` lists every flag.
@@ -49,6 +50,10 @@ garmin activity add --type KEY --start "YYYY-MM-DD HH:MM" --duration MIN [--dist
 - `garmin activity add` writes to the user's Garmin account. Run it only with the
   type, start and duration the user gave you. After a failed run, check
   `garmin activities` before retrying, so the activity is not created twice.
+- `garmin activity delete` cannot be undone. Run it only for an activity the user
+  asked you to delete, and always with `--yes`: without a terminal it exits 2 and
+  asks for `--yes`. When the user names the activity by date or name, look up its ID
+  with `garmin activities` and confirm the match with the user first.
 - Summary floats are rounded to two decimals. Quote them as printed.
 - Start with the summary. Add `--raw` only when the field you need is missing from it:
   raw output is the full Garmin response, many times larger.

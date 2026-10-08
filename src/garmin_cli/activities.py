@@ -4,7 +4,7 @@ from typing import Any
 
 from garminconnect import GarminConnectNotFoundError
 
-from garmin_cli.client import Connect
+from garmin_cli.client import Connect, GarminClient
 from garmin_cli.dates import add_range_arguments
 from garmin_cli.errors import GarminCliError
 
@@ -71,15 +71,19 @@ def activities(args: argparse.Namespace, connect: Connect) -> Any:
     return [summarize(a, a.get("activityType", {}).get("typeKey")) for a in found]
 
 
-def activity(args: argparse.Namespace, connect: Connect) -> Any:
-    client = connect()
+def fetch_activity(client: GarminClient, activity_id: str) -> dict[str, Any]:
     try:
-        summary = client.get_activity(args.id)
+        return client.get_activity(activity_id)
     except GarminConnectNotFoundError:
         raise GarminCliError(
-            f"No activity with ID {args.id}.",
+            f"No activity with ID {activity_id}.",
             "Run 'garmin activities' to list recent IDs.",
         ) from None
+
+
+def activity(args: argparse.Namespace, connect: Connect) -> Any:
+    client = connect()
+    summary = fetch_activity(client, args.id)
     splits = client.get_activity_splits(args.id)
     zones = client.get_activity_hr_in_timezones(args.id)
     if args.raw:
@@ -120,8 +124,9 @@ def register(subparsers: "argparse._SubParsersAction[argparse.ArgumentParser]") 
     activity_parser = subparsers.add_parser(
         "activity",
         help="one activity with laps and HR zones",
-        epilog="'garmin activity add' creates a manual activity on Garmin Connect. "
-        "Run 'garmin activity add --help' for its options.",
+        epilog="'garmin activity add' creates a manual activity on Garmin Connect "
+        "and 'garmin activity delete' deletes one. Run 'garmin activity add --help' "
+        "or 'garmin activity delete --help' for their options.",
     )
     activity_parser.add_argument("id")
     activity_parser.add_argument(

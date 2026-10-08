@@ -20,6 +20,7 @@ from garminconnect import (
 from garmin_cli import (
     activities,
     activity_add,
+    activity_delete,
     auth,
     health,
     sleep,
@@ -90,7 +91,7 @@ class CliParser(argparse.ArgumentParser):
             if name == "id":
                 return (
                     "Missing activity ID. Run 'garmin activities' to list IDs, "
-                    "then 'garmin activity <id>'."
+                    f"then '{self.prog} <id>'."
                 )
             return f"Missing {name} for '{self.prog}'. Run '{self.prog} --help'."
         # ponytail: only `garmin sleep` and `garmin sleep set` have mutually
@@ -179,8 +180,9 @@ def build_parser() -> CliParser:
     sleep_set.register(subparsers)
     activities.register(subparsers)
     activity_add.register(subparsers)
+    activity_delete.register(subparsers)
     stats.register(subparsers)
-    # The default names every choice, `sleep set` and `activity add` too.
+    # The default names every choice, the two-word commands like `sleep set` too.
     subparsers.metavar = f"{{{','.join(parser.listed)}}}"
     return parser
 
@@ -189,9 +191,9 @@ def main(argv: list[str] | None = None, connect: Connect = auth.connect) -> int:
     parser = build_parser()
     if argv is None:
         argv = sys.argv[1:]
-    # `garmin sleep set` and `garmin activity add` are registered as the one
-    # commands `sleep set` and `activity add`. Top-level options take no value, so
-    # the first other argument is the command.
+    # Two-word commands like `garmin sleep set` are registered as one command
+    # named `sleep set`. Top-level options take no value, so the first other
+    # argument is the command.
     for index, arg in enumerate(argv):
         if not arg.startswith("-"):
             if (command := " ".join(argv[index : index + 2])) in parser.commands:
