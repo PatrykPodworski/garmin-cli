@@ -250,6 +250,22 @@ Garmin estimates them, often far below its web form's value. `--name` defaults t
 is the machine's, from `TZ` or the `/etc/localtime` link; `--tz Europe/Warsaw`
 overrides it, and a machine without one exits with status 2 and asks for `--tz`.
 
+### activity delete
+
+```sh
+garmin activity delete 1234567890 --dry-run
+garmin activity delete 1234567890
+```
+
+Deletes an activity from Garmin Connect, for example a wrong manual entry, without
+asking. Take the ID from `garmin activities`. The command first reads the activity,
+so an unknown ID fails with the `garmin activity` message and deletes nothing. After
+the deletion, stdout is `{"deleted": 1234567890}` and stderr
+`garmin: Deleted "Park run" (2026-07-05 07:00).` `--dry-run` only reads the
+activity: stdout `{"would_delete": 1234567890}`, stderr
+`garmin: Would delete "Park run" (2026-07-05 07:00).` An activity without a name
+shows as `activity 1234567890`; without a start time, the time is left out.
+
 ## Raw output
 
 `stats`, `sleep`, `weight`, `bp`, `activities` and `activity` accept `--raw`. It
