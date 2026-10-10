@@ -51,5 +51,9 @@ class GarminClient(Protocol):
         self, _activity_id: str, /
     ) -> list[dict[str, Any]]: ...
 
+    def get_workouts(self, _start: int, _limit: int, /) -> list[dict[str, Any]]: ...
+
+    def get_workout_by_id(self, _workout_id: int, /) -> dict[str, Any]: ...
+
 
 Connect = Callable[[], GarminClient]

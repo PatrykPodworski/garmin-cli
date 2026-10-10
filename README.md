@@ -270,9 +270,67 @@ activity: stdout `{"would_delete": 1234567890}`, stderr
 `garmin: Would delete "Park run" (2026-07-05 07:00).` An activity without a name
 shows as `activity 1234567890`; without a start time, the time is left out.
 
+### workouts
+
+```sh
+garmin workouts                                   # the 20 newest workouts
+garmin workouts --limit 200
+```
+
+```json
+[
+  {
+    "id": 987654321,
+    "name": "Intervals 4x1k",
+    "sport": "running",
+    "estimated_duration_min": 45.5,
+    "created": "2026-07-05T08:00:00.0",
+    "updated": "2026-07-06T09:00:00.0"
+  }
+]
+```
+
+The workouts in the Garmin Connect workout library, newest created first.
+`--limit` caps the count (default 20). An empty library prints `[]`. A key Garmin
+has no value for is left out.
+
+### workout
+
+```sh
+garmin workout 987654321
+```
+
+```json
+{
+  "id": 987654321,
+  "name": "Intervals 4x1k",
+  "sport": "running",
+  "estimated_duration_min": 45.5,
+  "created": "2026-07-05T08:00:00.0",
+  "updated": "2026-07-06T09:00:00.0",
+  "steps": [
+    {"type": "warmup", "end": "time", "end_value": 600.0, "target": "no.target"},
+    {
+      "type": "repeat",
+      "iterations": 4,
+      "steps": [
+        {"type": "interval", "end": "distance", "end_value": 1000.0, "target": "pace.zone", "target_low": 3.7, "target_high": 4.0}
+      ]
+    }
+  ]
+}
+```
+
+One workout by the `id` from `garmin workouts`. It has the same keys as a
+`workouts` item, plus `steps`. A step's `end` says when it ends (`time` in
+seconds, `distance` in meters, `lap.button`) and `end_value` how much. `target`
+is the target type; `target_low` and `target_high` are its limits, for a pace
+target in m/s. A repeat step has `iterations` and its own `steps`.
+
 ## Raw output
 
-`stats`, `sleep`, `weight`, `bp`, `activities` and `activity` accept `--raw`. It
+`stats`, `sleep`, `weight`, `bp`, `activities`, `activity`, `workouts` and
+`workout` accept `--raw`. It
 prints the full Garmin response instead of the summary. `activity --raw` combines
 three responses under `summary`, `splits` and `hr_zones`. `stats --raw` skips the
 not-synced check.
@@ -298,6 +356,7 @@ Messages for status 1:
 | `sleep --night-of` night not synced | `garmin: No sleep data for the night of <date> yet. Sync your watch with Garmin Connect, then try again.` |
 | `sleep set` night has no time zone | `garmin: Garmin Connect sent no time zone for the night ending <date>, so garmin-cli cannot convert the times. Adjust the sleep times in the Garmin Connect app.` |
 | `activity <id>` not found | `garmin: No activity with ID <id>. Run 'garmin activities' to list recent IDs.` |
+| `workout <id>` not found | `garmin: No workout with ID <id>. Run 'garmin workouts' to list IDs.` |
 | Rate limit | `garmin: Garmin is rate-limiting requests from this machine. Wait a few minutes and try again.` |
 | Tokens expired | `garmin: Not logged in: no valid saved login in ~/.garminconnect. Run 'garmin login'.` |
 | Unreadable response | `garmin: Garmin Connect sent a response garmin-cli could not read. Try again in a few minutes; if it keeps failing, rerun with --debug and report it at https://github.com/PatrykPodworski/garmin-cli/issues.` |

@@ -1,6 +1,6 @@
 ---
 name: garmin
-description: Use when the user asks about their Garmin data — workouts (runs, rides), sleep or sleep score, weight, body fat, blood pressure, calories burned, resting heart rate, body battery or stress — or asks to adjust a night's sleep times, log a weigh-in, add a manual activity or delete an activity.
+description: Use when the user asks about their Garmin data — workouts (runs, rides), sleep or sleep score, weight, body fat, blood pressure, calories burned, resting heart rate, body battery or stress — or asks to adjust a night's sleep times, log a weigh-in, add a manual activity, delete an activity, or find a workout in their workout library.
 ---
 
 # garmin
@@ -32,6 +32,8 @@ garmin activities --limit 5 --type running --from DATE --to DATE  # newest first
 garmin activity ID                     # one activity with laps and HR zones; ID from `activities`
 garmin activity add --type KEY --start "YYYY-MM-DD HH:MM" --duration MIN [--distance KM] [--calories KCAL] [--name NAME]  # private manual activity
 garmin activity delete ID [--dry-run]  # delete an activity; ID from `activities`
+garmin workouts --limit 50              # workout library, newest created first, default limit 20
+garmin workout ID                      # one workout with its steps; ID from `workouts`
 ```
 
 `garmin <command> --help` lists every flag.
