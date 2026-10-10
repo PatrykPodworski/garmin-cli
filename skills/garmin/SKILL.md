@@ -1,13 +1,14 @@
 ---
 name: garmin
-description: Use when the user asks about their Garmin data — workouts (runs, rides), sleep or sleep score, weight, body fat, blood pressure, calories burned, resting heart rate, body battery or stress — or asks to adjust a night's sleep times, log a weigh-in, add a manual activity, delete an activity, find a workout in their workout library or create a structured running workout.
+description: Use when the user asks about their Garmin data — workouts (runs, rides), sleep or sleep score, weight, body fat, blood pressure, calories burned, resting heart rate, body battery or stress — or asks to adjust a night's sleep times, log a weigh-in, add a manual activity, delete an activity, find a workout in their workout library, create a structured running workout or delete a workout.
 ---
 
 # garmin
 
 `garmin` reads the user's Garmin Connect data and prints JSON. Run it with Bash.
-Five commands change data: `garmin weight add`, `garmin sleep set`,
-`garmin activity add`, `garmin activity delete` and `garmin workout add`.
+Six commands change data: `garmin weight add`, `garmin sleep set`,
+`garmin activity add`, `garmin activity delete`, `garmin workout add` and
+`garmin workout delete`.
 
 ## Login
 
@@ -35,6 +36,7 @@ garmin activity delete ID [--dry-run]  # delete an activity; ID from `activities
 garmin workouts --limit 50              # workout library, newest created first, default limit 20
 garmin workout ID                      # one workout with its steps; ID from `workouts`
 garmin workout add --file FILE [--schedule DATE]  # save a workout (Garmin JSON, - for stdin), optionally on the calendar
+garmin workout delete ID [--dry-run]   # delete a workout and its calendar entries; ID from `workouts`
 ```
 
 `garmin <command> --help` lists every flag.
@@ -61,6 +63,11 @@ garmin workout add --file FILE [--schedule DATE]  # save a workout (Garmin JSON,
   user described from the example in "Workout JSON" below, and add `--schedule` only
   for a date the user gave. When it exits 1 after `Created workout`, the workout
   exists but is not on the calendar: tell the user, and do not run it again.
+- `garmin workout delete` deletes without asking and cannot be undone; Garmin also
+  removes the workout's calendar entries. Run it only for a workout the user asked
+  you to delete. When the user names the workout instead of giving its ID, look up
+  the ID with `garmin workouts`, run `garmin workout delete ID --dry-run`, and
+  confirm the match with the user first.
 - Summary floats are rounded to two decimals. Quote them as printed.
 - Start with the summary. Add `--raw` only when the field you need is missing from it:
   raw output is the full Garmin response, many times larger.
