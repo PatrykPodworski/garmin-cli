@@ -4,7 +4,7 @@ from typing import Any
 from garminconnect import GarminConnectNotFoundError
 
 from garmin_cli.activities import positive_int
-from garmin_cli.client import Connect
+from garmin_cli.client import Connect, GarminClient
 from garmin_cli.errors import GarminCliError
 
 # Workouts per `get_workouts` call, the library's default limit.
@@ -66,16 +66,16 @@ def workouts(args: argparse.Namespace, connect: Connect) -> Any:
     return [summarize(w) for w in found]
 
 
-def workout(args: argparse.Namespace, connect: Connect) -> Any:
-    client = connect()
+def fetch_workout(client: GarminClient, workout_id: int) -> dict[str, Any]:
     try:
-        raw = client.get_workout_by_id(args.id)
+        return client.get_workout_by_id(workout_id)
     except GarminConnectNotFoundError:
         raise GarminCliError(
-            f"No workout with ID {args.id}.", "Run 'garmin workouts' to list IDs."
+            f"No workout with ID {workout_id}.", "Run 'garmin workouts' to list IDs."
         ) from None
-    if args.raw:
-        return raw
+
+
+def describe(raw: dict[str, Any]) -> dict[str, Any]:
     # ponytail: a multisport workout's segments are joined into one step list;
     # add a `segments` key if those workouts need their boundaries.
     steps = [
@@ -84,6 +84,11 @@ def workout(args: argparse.Namespace, connect: Connect) -> Any:
         for step in segment.get("workoutSteps") or []
     ]
     return {**summarize(raw), "steps": steps}
+
+
+def workout(args: argparse.Namespace, connect: Connect) -> Any:
+    raw = fetch_workout(connect(), args.id)
+    return raw if args.raw else describe(raw)
 
 
 def register(subparsers: "argparse._SubParsersAction[argparse.ArgumentParser]") -> None:
