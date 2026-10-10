@@ -29,6 +29,7 @@ from garmin_cli import (
     weight_add,
     workout_add,
     workout_delete,
+    workout_edit,
     workout_schedule,
     workout_unschedule,
     workouts,
@@ -192,6 +193,7 @@ def build_parser() -> CliParser:
     stats.register(subparsers)
     workouts.register(subparsers)
     workout_add.register(subparsers)
+    workout_edit.register(subparsers)
     workout_delete.register(subparsers)
     workout_schedule.register(subparsers)
     workout_unschedule.register(subparsers)

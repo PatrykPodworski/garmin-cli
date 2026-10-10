@@ -77,11 +77,7 @@ def fetch_workout(client: GarminClient, workout_id: int) -> dict[str, Any]:
         ) from None
 
 
-def workout(args: argparse.Namespace, connect: Connect) -> Any:
-    client = connect()
-    raw = fetch_workout(client, args.id)
-    if args.raw:
-        return raw
+def describe(raw: dict[str, Any]) -> dict[str, Any]:
     # ponytail: a multisport workout's segments are joined into one step list;
     # add a `segments` key if those workouts need their boundaries.
     steps = [
@@ -90,6 +86,11 @@ def workout(args: argparse.Namespace, connect: Connect) -> Any:
         for step in segment.get("workoutSteps") or []
     ]
     return {**summarize(raw), "steps": steps}
+
+
+def workout(args: argparse.Namespace, connect: Connect) -> Any:
+    raw = fetch_workout(connect(), args.id)
+    return raw if args.raw else describe(raw)
 
 
 def calendar(args: argparse.Namespace, connect: Connect) -> Any:
@@ -142,10 +143,10 @@ def register(subparsers: "argparse._SubParsersAction[argparse.ArgumentParser]") 
     workout_parser = subparsers.add_parser(
         "workout",
         help="one workout with its steps",
-        epilog="'garmin workout add', 'garmin workout delete', 'garmin workout "
-        "schedule', 'garmin workout unschedule' and 'garmin workout calendar' manage "
-        "the workout library and calendar. Run 'garmin workout <command> --help' for "
-        "their options.",
+        epilog="'garmin workout add', 'garmin workout edit', 'garmin workout "
+        "delete', 'garmin workout schedule', 'garmin workout unschedule' and "
+        "'garmin workout calendar' manage the workout library and calendar. Run "
+        "'garmin workout <command> --help' for their options.",
     )
     workout_parser.add_argument(
         "id", type=workout_id, help="workout ID from 'garmin workouts'"
