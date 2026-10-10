@@ -19,6 +19,27 @@ SET_NIGHT: dict[str, Any] = {
 SUMMARY_START = "23:10"
 
 
+def night_with(**stamps: Any) -> dict[str, Any]:
+    return {"dailySleepDTO": {**SET_NIGHT["dailySleepDTO"], **stamps}}
+
+
+# Europe/Warsaw nights with a clock change: lights-out 23:10, wake-up 07:00.
+AUTUMN = night_with(  # CEST (+2) to CET (+1) at 03:00
+    calendarDate="2026-10-25",
+    sleepStartTimestampLocal=1792883400000,
+    sleepStartTimestampGMT=1792876200000,
+    sleepEndTimestampLocal=1792911600000,
+    sleepEndTimestampGMT=1792908000000,
+)
+SPRING = night_with(  # CET (+1) to CEST (+2) at 02:00
+    calendarDate="2026-03-29",
+    sleepStartTimestampLocal=1774739400000,
+    sleepStartTimestampGMT=1774735800000,
+    sleepEndTimestampLocal=1774767600000,
+    sleepEndTimestampGMT=1774760400000,
+)
+
+
 class FailingHttp:
     def put(self, *_args: Any, **_kwargs: Any) -> Any:
         raise GarminConnectConnectionError("API Error 400 - Bad request")
@@ -31,7 +52,9 @@ def sleep_client(night: dict[str, Any] = SET_NIGHT) -> FakeClient:
     return client
 
 
-def put_call(start: int, end: int, nap: int = 0) -> tuple[str, Any, Any]:
+def put_call(
+    start: int, end: int, nap: int = 0, day: str = "2026-07-05"
+) -> tuple[str, Any, Any]:
     return (
         "put",
         ("connectapi", "/sleep-service/sleep/dailySleep/1783199400000"),
@@ -39,7 +62,7 @@ def put_call(start: int, end: int, nap: int = 0) -> tuple[str, Any, Any]:
             "json": {
                 "id": 1783199400000,
                 "userProfilePK": 1234,
-                "calendarDate": "2026-07-05",
+                "calendarDate": day,
                 "sleepStartTimestampGMT": start,
                 "sleepEndTimestampGMT": end,
                 "sleepTimeSeconds": (end - start) // 1000,
@@ -131,6 +154,29 @@ def test_sleep_set_after_debug_flag(capsys: pytest.CaptureFixture[str]) -> None:
 
 
 @pytest.mark.parametrize(
+    ("night", "end", "start_ms", "end_ms"),
+    [
+        # 2026-10-24 23:00 CEST and 2026-10-25 07:15 CET.
+        (AUTUMN, "07:15", 1792875600000, 1792908900000),
+        # 2026-03-28 23:00 CET and 2026-03-29 07:00 CEST.
+        (SPRING, "07:00", 1774735200000, 1774760400000),
+    ],
+)
+def test_sleep_set_clock_change_night_gives_each_time_its_own_offset(
+    night: dict[str, Any],
+    end: str,
+    start_ms: int,
+    end_ms: int,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    day = night["dailySleepDTO"]["calendarDate"]
+    client = sleep_client(night)
+
+    assert run_sleep(client, "set", day, "--start", "23:00", "--end", end) == 0
+    assert client.calls[1] == put_call(start_ms, end_ms, day=day)
+
+
+@pytest.mark.parametrize(
     ("argv", "message"),
     [
         (
@@ -187,7 +233,15 @@ def test_sleep_set_not_synced_exits_nonzero(capsys: pytest.CaptureFixture[str]) 
     assert [call[0] for call in client.calls] == ["get_sleep_data"]
 
 
-@pytest.mark.parametrize("missing", ["sleepEndTimestampLocal", "sleepEndTimestampGMT"])
+@pytest.mark.parametrize(
+    "missing",
+    [
+        "sleepStartTimestampLocal",
+        "sleepStartTimestampGMT",
+        "sleepEndTimestampLocal",
+        "sleepEndTimestampGMT",
+    ],
+)
 def test_sleep_set_without_offset_exits_before_the_put(
     missing: str, capsys: pytest.CaptureFixture[str]
 ) -> None:

@@ -15,20 +15,25 @@ def set_sleep(args: argparse.Namespace, connect: Connect) -> Any:
         )
     client = connect()
     night = fetch(args, client, "id")["dailySleepDTO"]
-    local, gmt = night.get("sleepEndTimestampLocal"), night.get("sleepEndTimestampGMT")
-    if local is None or gmt is None:
-        raise GarminCliError(
-            f"Garmin Connect sent no time zone for the night ending "
-            f"{night['calendarDate']}, so garmin-cli cannot convert the times.",
-            "Adjust the sleep times in the Garmin Connect app.",
-        )
+    offsets = []
+    for edge in ("Start", "End"):
+        local = night.get(f"sleep{edge}TimestampLocal")
+        gmt = night.get(f"sleep{edge}TimestampGMT")
+        if local is None or gmt is None:
+            raise GarminCliError(
+                f"Garmin Connect sent no time zone for the night ending "
+                f"{night['calendarDate']}, so garmin-cli cannot convert the times.",
+                "Adjust the sleep times in the Garmin Connect app.",
+            )
+        offsets.append(local - gmt)
     wake_up = date.fromisoformat(night["calendarDate"])
     end = datetime.combine(wake_up, args.end, UTC)
     start = datetime.combine(wake_up, args.start, UTC)
     if args.start > args.end:
         start -= timedelta(days=1)
-    # The night's own offset gives GMT whatever the machine's time zone is.
-    start_ms, end_ms = (gmt_ms(t, local - gmt) for t in (start, end))
+    # The night's own offsets at lights-out and wake-up give GMT whatever the
+    # machine's time zone is, also when the clocks change that night.
+    start_ms, end_ms = gmt_ms(start, offsets[0]), gmt_ms(end, offsets[1])
     client.client.put(
         "connectapi",
         f"/sleep-service/sleep/dailySleep/{night['id']}",
