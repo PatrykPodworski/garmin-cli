@@ -2,6 +2,7 @@ import argparse
 import os
 from datetime import UTC, date, datetime, time, timedelta
 from pathlib import Path
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 LOCALTIME = Path("/etc/localtime")
 
@@ -24,10 +25,17 @@ def wall_clock(timestamp_ms: int) -> datetime:
     return datetime.fromtimestamp(timestamp_ms / 1000, UTC)
 
 
-def gmt_ms(local: datetime, offset_ms: int) -> int:
-    """Epoch ms in GMT of `local`, a wall-clock time encoded as UTC that is
-    `offset_ms` ahead of GMT."""
-    return int(local.timestamp()) * 1000 - offset_ms
+def zone_gmt_ms(wall: datetime, zone: ZoneInfo) -> int:
+    """Epoch ms in GMT of the naive wall-clock time `wall` in `zone`. Raises
+    ValueError when a clock change skips the time or shows it twice."""
+    first, second = (
+        wall.replace(tzinfo=zone, fold=fold).timestamp() for fold in (0, 1)
+    )
+    if first > second:
+        raise ValueError(f"{wall:%Y-%m-%d %H:%M} does not exist")
+    if first < second:
+        raise ValueError(f"{wall:%Y-%m-%d %H:%M} happens twice")
+    return int(first) * 1000
 
 
 def parse_time(value: str) -> time:
@@ -59,6 +67,16 @@ def local_time_zone() -> str | None:
     except OSError:
         return None
     return target.partition("zoneinfo/")[2] or None
+
+
+def machine_zone() -> ZoneInfo | None:
+    name = local_time_zone()
+    if not name:
+        return None
+    try:
+        return ZoneInfo(name)
+    except (ZoneInfoNotFoundError, ValueError):
+        return None
 
 
 def add_date_argument(parser: argparse._ActionsContainer) -> None:

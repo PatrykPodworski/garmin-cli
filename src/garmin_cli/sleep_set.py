@@ -1,9 +1,9 @@
 import argparse
-from datetime import UTC, date, datetime, timedelta
+from datetime import date, datetime, timedelta
 from typing import Any
 
 from garmin_cli.client import Connect
-from garmin_cli.dates import gmt_ms, parse_time
+from garmin_cli.dates import machine_zone, parse_time, zone_gmt_ms
 from garmin_cli.errors import GarminCliError
 from garmin_cli.sleep import add_night_arguments, fetch, summarize
 
@@ -23,12 +23,28 @@ def set_sleep(args: argparse.Namespace, connect: Connect) -> Any:
             "Adjust the sleep times in the Garmin Connect app.",
         )
     wake_up = date.fromisoformat(night["calendarDate"])
-    end = datetime.combine(wake_up, args.end, UTC)
-    start = datetime.combine(wake_up, args.start, UTC)
+    end = datetime.combine(wake_up, args.end)
+    start = datetime.combine(wake_up, args.start)
     if args.start > args.end:
         start -= timedelta(days=1)
-    # The night's own offset gives GMT whatever the machine's time zone is.
-    start_ms, end_ms = (gmt_ms(t, local - gmt) for t in (start, end))
+    zone = machine_zone()
+    if zone is None or datetime.fromtimestamp(gmt / 1000, zone).utcoffset() != (
+        timedelta(milliseconds=local - gmt)
+    ):
+        # ponytail: a night slept in another time zone (travel) is rare enough for
+        # the Garmin Connect app; a --tz option can come when someone needs it.
+        raise GarminCliError(
+            f"The night ending {night['calendarDate']} was not in this machine's "
+            "time zone, so garmin-cli cannot convert the times.",
+            "Adjust the sleep times in the Garmin Connect app.",
+        )
+    # Each time gets its own offset, also when the clocks change that night.
+    try:
+        start_ms, end_ms = zone_gmt_ms(start, zone), zone_gmt_ms(end, zone)
+    except ValueError as problem:
+        args.parser.fail(
+            f"{problem} because the clocks change that night. Give another time."
+        )
     client.client.put(
         "connectapi",
         f"/sleep-service/sleep/dailySleep/{night['id']}",
