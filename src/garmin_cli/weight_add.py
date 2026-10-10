@@ -34,8 +34,13 @@ def local_time(value: str) -> str:
 
 
 def add_weight(args: argparse.Namespace, connect: Connect) -> Any:
-    # An empty timestamp makes garminconnect use the current time.
-    return connect().add_weigh_in(args.weight, args.unit, args.at or "")
+    at = args.at or datetime.now().replace(second=0, microsecond=0).isoformat()
+    created = connect().add_weigh_in(args.weight, args.unit, at)
+    if created is not None:
+        return created
+    # Garmin answers the POST with no body, so print what was logged.
+    day, time = at.split("T")
+    return {"date": day, "time": time, "weight": args.weight, "unit": args.unit}
 
 
 def register(weight_parser: argparse.ArgumentParser) -> None:

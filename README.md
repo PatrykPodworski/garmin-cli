@@ -138,7 +138,8 @@ garmin weight --from 2026-07-01 --to 2026-07-05
 One record per weigh-in, with local time. A scale that does not measure body
 composition leaves those fields `null`. A range with no weigh-ins prints `[]`.
 
-`weight add` logs a manual weigh-in and prints the record Garmin created.
+`weight add` logs a manual weigh-in and prints what it logged:
+`{"date": "2026-07-05", "time": "07:30:00", "weight": 82.4, "unit": "kg"}`.
 
 ```sh
 garmin weight add 82.4                           # kg, now
