@@ -4,7 +4,7 @@ from typing import Any
 from garminconnect import GarminConnectNotFoundError
 
 from garmin_cli.activities import positive_int
-from garmin_cli.client import Connect
+from garmin_cli.client import Connect, GarminClient
 from garmin_cli.errors import GarminCliError
 
 # Workouts per `get_workouts` call, the library's default limit.
@@ -66,14 +66,18 @@ def workouts(args: argparse.Namespace, connect: Connect) -> Any:
     return [summarize(w) for w in found]
 
 
-def workout(args: argparse.Namespace, connect: Connect) -> Any:
-    client = connect()
+def fetch_workout(client: GarminClient, workout_id: int) -> dict[str, Any]:
     try:
-        raw = client.get_workout_by_id(args.id)
+        return client.get_workout_by_id(workout_id)
     except GarminConnectNotFoundError:
         raise GarminCliError(
-            f"No workout with ID {args.id}.", "Run 'garmin workouts' to list IDs."
+            f"No workout with ID {workout_id}.", "Run 'garmin workouts' to list IDs."
         ) from None
+
+
+def workout(args: argparse.Namespace, connect: Connect) -> Any:
+    client = connect()
+    raw = fetch_workout(client, args.id)
     if args.raw:
         return raw
     # ponytail: a multisport workout's segments are joined into one step list;
