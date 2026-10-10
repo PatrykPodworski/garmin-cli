@@ -27,6 +27,7 @@ from garmin_cli import (
     sleep_set,
     stats,
     weight_add,
+    workout_add,
 )
 from garmin_cli.client import Connect
 from garmin_cli.errors import GarminCliError
@@ -182,6 +183,7 @@ def build_parser() -> CliParser:
     activity_add.register(subparsers)
     activity_delete.register(subparsers)
     stats.register(subparsers)
+    workout_add.register(subparsers)
     # The default names every choice, the two-word commands like `sleep set` too.
     subparsers.metavar = f"{{{','.join(parser.listed)}}}"
     return parser

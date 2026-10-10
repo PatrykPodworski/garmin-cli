@@ -270,6 +270,32 @@ activity: stdout `{"would_delete": 1234567890}`, stderr
 `garmin: Would delete "Park run" (2026-07-05 07:00).` An activity without a name
 shows as `activity 1234567890`; without a start time, the time is left out.
 
+### workout add
+
+```sh
+garmin workout add --file intervals.json
+garmin workout add --file intervals.json --schedule 2026-07-06
+cat intervals.json | garmin workout add --file -
+```
+
+Saves a structured workout to the Garmin Connect workout library. The file holds
+one workout in Garmin's own JSON format, the shape `garmin workout ID --raw` prints;
+`skills/garmin/SKILL.md` has a complete example with a warm-up, a repeat group with
+a pace target and a cool-down, and lists the step, end condition and target IDs.
+Pace targets are in meters per second. `--file -` reads the workout from stdin.
+`--schedule DATE` also puts the workout on the calendar, and the watch gets it on
+its next sync.
+
+garmin-cli checks only that the input is a JSON object with `workoutName`,
+`sportType` and `workoutSegments`, and exits with status 2 otherwise; Garmin checks
+the rest. stdout is
+`{"id": 1234567890, "name": "5 x 1 km", "estimated_duration_min": 55.0, "scheduled": "2026-07-06"}`
+and stderr
+`garmin: Created workout "5 x 1 km" (ID 1234567890) and scheduled it for 2026-07-06.`
+When the scheduling fails, the workout exists without a calendar entry: the command
+exits 1 with `garmin: Created workout "5 x 1 km" (ID 1234567890) but did not schedule it.`
+followed by the cause. Running it again creates a second copy.
+
 ## Raw output
 
 `stats`, `sleep`, `weight`, `bp`, `activities` and `activity` accept `--raw`. It
