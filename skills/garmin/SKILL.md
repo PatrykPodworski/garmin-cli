@@ -1,14 +1,14 @@
 ---
 name: garmin
-description: Use when the user asks about their Garmin data — workouts (runs, rides), sleep or sleep score, weight, body fat, blood pressure, calories burned, resting heart rate, body battery or stress — or asks to adjust a night's sleep times, log a weigh-in, add a manual activity, delete an activity, find a workout in their workout library or create or change a structured running workout.
+description: Use when the user asks about their Garmin data — workouts (runs, rides), sleep or sleep score, weight, body fat, blood pressure, calories burned, resting heart rate, body battery or stress — or asks to adjust a night's sleep times, log a weigh-in, add a manual activity, delete an activity, find a workout in their workout library, create or change a structured running workout or delete a workout.
 ---
 
 # garmin
 
 `garmin` reads the user's Garmin Connect data and prints JSON. Run it with Bash.
-Six commands change data: `garmin weight add`, `garmin sleep set`,
-`garmin activity add`, `garmin activity delete`, `garmin workout add` and
-`garmin workout edit`.
+Seven commands change data: `garmin weight add`, `garmin sleep set`,
+`garmin activity add`, `garmin activity delete`, `garmin workout add`,
+`garmin workout edit` and `garmin workout delete`.
 
 ## Login
 
@@ -37,6 +37,7 @@ garmin workouts --limit 50              # workout library, newest created first,
 garmin workout ID                      # one workout with its steps; ID from `workouts`
 garmin workout add --file FILE [--schedule DATE]  # save a workout (Garmin JSON, - for stdin), optionally on the calendar
 garmin workout edit ID --file FILE      # replace a workout with changed `workout ID --raw` JSON; keeps ID and calendar
+garmin workout delete ID [--dry-run]    # delete a workout and its calendar entries; ID from `workouts`
 ```
 
 `garmin <command> --help` lists every flag.
@@ -67,6 +68,11 @@ garmin workout edit ID --file FILE      # replace a workout with changed `workou
   Run it only for a workout the user asked you to change. Round-trip it: save
   `garmin workout ID --raw` to a file, change only what the user asked, then run
   `garmin workout edit ID --file FILE` with the same ID.
+- `garmin workout delete` deletes without asking and cannot be undone; Garmin also
+  removes the workout's calendar entries. Run it only for a workout the user asked
+  you to delete. When the user names the workout instead of giving its ID, look up
+  the ID with `garmin workouts`, run `garmin workout delete ID --dry-run`, and
+  confirm the match with the user first.
 - Summary floats are rounded to two decimals. Quote them as printed.
 - Start with the summary. Add `--raw` only when the field you need is missing from it:
   raw output is the full Garmin response, many times larger.

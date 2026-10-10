@@ -63,5 +63,7 @@ class GarminClient(Protocol):
         self, _workout_id: int, _workout: dict[str, Any], /
     ) -> dict[str, Any]: ...
 
+    def delete_workout(self, _workout_id: int, /) -> Any: ...
+
 
 Connect = Callable[[], GarminClient]
