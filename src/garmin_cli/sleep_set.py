@@ -33,8 +33,6 @@ def set_sleep(args: argparse.Namespace, connect: Connect) -> Any:
         start -= timedelta(days=1)
     # The night's own offsets at lights-out and wake-up give GMT whatever the
     # machine's time zone is, also when the clocks change that night.
-    # ponytail: the start is an hour off when the change falls between the
-    # recorded start and the new one (e.g. recorded 03:30, new 23:00).
     start_ms, end_ms = gmt_ms(start, offsets[0]), gmt_ms(end, offsets[1])
     client.client.put(
         "connectapi",

@@ -116,9 +116,7 @@ the sleep stages at once, but the sleep score may update later. A start equal to
 the end exits with status 2, and a night that has not synced exits with status 1.
 
 The times are converted with the night's own offsets from Garmin Connect: the start
-with the offset at lights-out, the end with the offset at wake-up. A night with a
-clock change comes out right, and so does a night in another time zone than this
-machine's.
+with the offset at lights-out, the end with the offset at wake-up.
 
 ### weight
 
