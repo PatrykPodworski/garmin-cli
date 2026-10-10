@@ -353,6 +353,23 @@ When the scheduling fails, the workout exists without a calendar entry: the comm
 exits 1 with `garmin: Created workout "5 x 1 km" (ID 1234567890) but did not schedule it.`
 followed by the cause. Running it again creates a second copy.
 
+### workout edit
+
+```sh
+garmin workout 1234567890 --raw > intervals.json
+# change intervals.json
+garmin workout edit 1234567890 --file intervals.json
+```
+
+Replaces a workout in the Garmin Connect workout library with the workout in the
+file. The workout keeps its ID, so its calendar entries stay. Garmin replaces the
+whole workout, so start from the `garmin workout ID --raw` output and change only
+what you need. `--file -` reads the workout from stdin. The input check is the same
+as for `workout add`, and the command reads the workout first, so an unknown ID
+fails with the `garmin workout` message and changes nothing. stdout is the updated
+workout in the `garmin workout` format and stderr
+`garmin: Updated workout "5 x 1 km" (ID 1234567890).`
+
 ### workout delete
 
 ```sh
@@ -398,7 +415,7 @@ Messages for status 1:
 | `sleep --night-of` night not synced | `garmin: No sleep data for the night of <date> yet. Sync your watch with Garmin Connect, then try again.` |
 | `sleep set` night has no time zone | `garmin: Garmin Connect sent no time zone for the night ending <date>, so garmin-cli cannot convert the times. Adjust the sleep times in the Garmin Connect app.` |
 | `activity <id>` not found | `garmin: No activity with ID <id>. Run 'garmin activities' to list recent IDs.` |
-| `workout <id>` not found | `garmin: No workout with ID <id>. Run 'garmin workouts' to list IDs.` |
+| `workout <id>` or `workout edit <id>` not found | `garmin: No workout with ID <id>. Run 'garmin workouts' to list IDs.` |
 | Rate limit | `garmin: Garmin is rate-limiting requests from this machine. Wait a few minutes and try again.` |
 | Tokens expired | `garmin: Not logged in: no valid saved login in ~/.garminconnect. Run 'garmin login'.` |
 | Unreadable response | `garmin: Garmin Connect sent a response garmin-cli could not read. Try again in a few minutes; if it keeps failing, rerun with --debug and report it at https://github.com/PatrykPodworski/garmin-cli/issues.` |
