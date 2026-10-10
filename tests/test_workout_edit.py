@@ -147,3 +147,19 @@ def test_workout_edit_update_error_exits_1(
         "get_workout_by_id",
         "update_workout",
     ]
+
+
+def test_workout_edit_missing_file_option_exits_2(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    client = edit_client()
+
+    result = run(["workout", "edit", "501"], client, capsys)
+
+    assert result == (
+        2,
+        "",
+        "garmin: Missing --file for 'garmin workout edit'. Run 'garmin workout edit "
+        "--help'.\n",
+    )
+    assert client.calls == []
