@@ -396,6 +396,7 @@ stderr `garmin: Removed calendar entry 123456789.`
 
 ```sh
 garmin workout calendar                                  # today to 4 weeks after today
+garmin workout calendar --from 2026-07-01                # 2026-07-01 to 2026-07-29
 garmin workout calendar --from 2026-07-01 --to 2026-07-31
 ```
 
@@ -411,15 +412,18 @@ garmin workout calendar --from 2026-07-01 --to 2026-07-31
 ```
 
 The workouts on the Garmin Connect calendar between `--from` and `--to`, both
-included, oldest first. Other calendar items, such as activities, are left out. An
-empty range prints `[]`.
+included, oldest first. `--from` defaults to today and `--to` to 4 weeks after
+`--from`; a `--to` before `--from` exits with status 2. Other calendar items, such as
+activities, are left out. An empty range prints `[]`.
 
 ## Raw output
 
 `stats`, `sleep`, `weight`, `bp`, `activities`, `activity`, `workouts`, `workout`
 and `workout calendar` accept `--raw`. It
 prints the full Garmin response instead of the summary. `activity --raw` combines
-three responses under `summary`, `splits` and `hr_zones`. `stats --raw` skips the
+three responses under `summary`, `splits` and `hr_zones`. `workout calendar --raw`
+prints Garmin's calendar items for the workouts in the range, without the other
+item types. `stats --raw` skips the
 not-synced check.
 
 ## Output and exit codes

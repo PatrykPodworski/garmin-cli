@@ -93,9 +93,15 @@ def workout(args: argparse.Namespace, connect: Connect) -> Any:
 
 
 def calendar(args: argparse.Namespace, connect: Connect) -> Any:
+    start = args.start
+    end = args.end or start + timedelta(weeks=4)
+    if end < start:
+        args.parser.fail(
+            f"--to {end} is before --from {start}. Give a --to on or after --from."
+        )
     client = connect()
-    first = args.start.year * 12 + args.start.month - 1
-    last = args.end.year * 12 + args.end.month - 1
+    first = start.year * 12 + start.month - 1
+    last = end.year * 12 + end.month - 1
     found = [
         item
         for month in range(first, last + 1)
@@ -103,7 +109,7 @@ def calendar(args: argparse.Namespace, connect: Connect) -> Any:
             "calendarItems", []
         )
         if item.get("itemType") == "workout"
-        and args.start.isoformat() <= item["date"] <= args.end.isoformat()
+        and start.isoformat() <= item["date"] <= end.isoformat()
     ]
     found.sort(key=lambda item: item["date"])
     if args.raw:
@@ -133,7 +139,14 @@ def register(subparsers: "argparse._SubParsersAction[argparse.ArgumentParser]") 
         "--raw", action="store_true", help="print the full Garmin response"
     )
     workouts_parser.set_defaults(run=workouts)
-    workout_parser = subparsers.add_parser("workout", help="one workout with its steps")
+    workout_parser = subparsers.add_parser(
+        "workout",
+        help="one workout with its steps",
+        epilog="'garmin workout add', 'garmin workout delete', 'garmin workout "
+        "schedule', 'garmin workout unschedule' and 'garmin workout calendar' manage "
+        "the workout library and calendar. Run 'garmin workout <command> --help' for "
+        "their options.",
+    )
     workout_parser.add_argument(
         "id", type=workout_id, help="workout ID from 'garmin workouts'"
     )
@@ -148,10 +161,9 @@ def register(subparsers: "argparse._SubParsersAction[argparse.ArgumentParser]") 
         description="Workouts on the Garmin Connect calendar, by date. Each entry "
         "has the schedule_id that 'garmin workout unschedule' takes.",
     )
-    today = date.today()
     for flag, dest, default, shown in (
-        ("--from", "start", today, "today"),
-        ("--to", "end", today + timedelta(weeks=4), "4 weeks after today"),
+        ("--from", "start", date.today(), "today"),
+        ("--to", "end", None, "4 weeks after --from"),
     ):
         calendar_parser.add_argument(
             flag,
@@ -162,6 +174,8 @@ def register(subparsers: "argparse._SubParsersAction[argparse.ArgumentParser]") 
             help=f"today | yesterday | tomorrow | YYYY-MM-DD (default: {shown})",
         )
     calendar_parser.add_argument(
-        "--raw", action="store_true", help="print the full Garmin response"
+        "--raw",
+        action="store_true",
+        help="print the raw Garmin calendar items instead of the summary",
     )
-    calendar_parser.set_defaults(run=calendar)
+    calendar_parser.set_defaults(run=calendar, parser=calendar_parser)

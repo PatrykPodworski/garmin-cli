@@ -307,6 +307,47 @@ def test_workout_calendar_defaults_to_the_next_4_weeks(
     assert [entry["schedule_id"] for entry in result] == [1, 3]
 
 
+def test_workout_calendar_to_defaults_to_4_weeks_after_from(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    client = CalendarClient({(2027, 3): [scheduled(1, "2027-03-29", 501, "Test")]})
+
+    result = run_json(["workout", "calendar", "--from", "2027-03-01"], client, capsys)
+
+    assert client.calls == [(2027, 3)]
+    assert [entry["schedule_id"] for entry in result] == [1]
+
+
+def test_workout_calendar_to_before_from_exits_2(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    client = FakeClient(get_scheduled_workouts={})
+
+    with pytest.raises(SystemExit) as exit:
+        main(
+            ["workout", "calendar", "--from", "2026-12-01", "--to", "2026-11-30"],
+            connect=lambda: client,
+        )
+
+    assert exit.value.code == 2
+    assert capsys.readouterr().err == (
+        "garmin: --to 2026-11-30 is before --from 2026-12-01. Give a --to on or "
+        "after --from.\n"
+    )
+    assert client.calls == []
+
+
+def test_workout_help_names_its_subcommands(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    with pytest.raises(SystemExit):
+        main(["workout", "--help"])
+
+    help_text = " ".join(capsys.readouterr().out.split())
+    for command in ("add", "delete", "schedule", "unschedule", "calendar"):
+        assert f"'garmin workout {command}'" in help_text
+
+
 def test_workout_calendar_empty_range(capsys: pytest.CaptureFixture[str]) -> None:
     client = CalendarClient({(2026, 10): [EARLY, RUN]})
 

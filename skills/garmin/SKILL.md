@@ -40,7 +40,7 @@ garmin workout add --file FILE [--schedule DATE]  # save a workout (Garmin JSON,
 garmin workout delete ID [--dry-run]   # delete a workout and its calendar entries; ID from `workouts`
 garmin workout schedule ID DATE         # put a library workout on the calendar; ID from `workouts`
 garmin workout unschedule SCHEDULE_ID   # take one entry off the calendar; schedule_id from `workout calendar`
-garmin workout calendar --from DATE --to DATE  # scheduled workouts (default today to 4 weeks after today)
+garmin workout calendar --from DATE --to DATE  # scheduled workouts (default today to 4 weeks after --from)
 ```
 
 `garmin <command> --help` lists every flag.

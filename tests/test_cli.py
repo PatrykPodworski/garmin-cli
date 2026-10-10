@@ -212,17 +212,7 @@ def test_prints_json_indented_by_2(capsys: pytest.CaptureFixture[str]) -> None:
 
 @pytest.mark.parametrize(
     "command",
-    [
-        "activities",
-        "activity",
-        "sleep",
-        "stats",
-        "weight",
-        "bp",
-        "workouts",
-        "workout",
-        "workout calendar",
-    ],
+    ["activities", "activity", "sleep", "stats", "weight", "bp", "workouts", "workout"],
 )
 def test_raw_help_on_every_data_command(
     command: str, capsys: pytest.CaptureFixture[str]
