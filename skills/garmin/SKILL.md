@@ -1,13 +1,13 @@
 ---
 name: garmin
-description: Use when the user asks about their Garmin data — workouts (runs, rides), sleep or sleep score, weight, body fat, blood pressure, calories burned, resting heart rate, body battery or stress — or asks to adjust a night's sleep times, log a weigh-in, add a manual activity or delete an activity.
+description: Use when the user asks about their Garmin data — workouts (runs, rides), sleep or sleep score, weight, body fat, blood pressure, calories burned, resting heart rate, body battery or stress — or asks to adjust a night's sleep times, log a weigh-in, add a manual activity, delete an activity or create a structured running workout.
 ---
 
 # garmin
 
 `garmin` reads the user's Garmin Connect data and prints JSON. Run it with Bash.
-Four commands change data: `garmin weight add`, `garmin sleep set`,
-`garmin activity add` and `garmin activity delete`.
+Five commands change data: `garmin weight add`, `garmin sleep set`,
+`garmin activity add`, `garmin activity delete` and `garmin workout add`.
 
 ## Login
 
@@ -32,6 +32,7 @@ garmin activities --limit 5 --type running --from DATE --to DATE  # newest first
 garmin activity ID                     # one activity with laps and HR zones; ID from `activities`
 garmin activity add --type KEY --start "YYYY-MM-DD HH:MM" --duration MIN [--distance KM] [--calories KCAL] [--name NAME]  # private manual activity
 garmin activity delete ID [--dry-run]  # delete an activity; ID from `activities`
+garmin workout add --file FILE [--schedule DATE]  # save a workout (Garmin JSON, - for stdin), optionally on the calendar
 ```
 
 `garmin <command> --help` lists every flag.
@@ -54,9 +55,75 @@ garmin activity delete ID [--dry-run]  # delete an activity; ID from `activities
   for an activity the user asked you to delete. When the user names the activity by
   date or name instead of ID, look up its ID with `garmin activities`, run
   `garmin activity delete ID --dry-run`, and confirm the match with the user first.
+- `garmin workout add` writes to the user's Garmin account. Build the workout the
+  user described from the example in "Workout JSON" below, and add `--schedule` only
+  for a date the user gave. When it exits 1 after `Created workout`, the workout
+  exists but is not on the calendar: tell the user, and do not run it again.
 - Summary floats are rounded to two decimals. Quote them as printed.
 - Start with the summary. Add `--raw` only when the field you need is missing from it:
   raw output is the full Garmin response, many times larger.
+
+## Workout JSON
+
+`garmin workout add` takes a workout in Garmin's own format. Copy this shape and
+change the names, counts and values. It has a 10-minute warm-up, 5 × (1 km at
+5:10–4:50 min/km, 2 minutes recovery) and a 10-minute cool-down.
+
+```json
+{
+  "workoutName": "5 x 1 km",
+  "sportType": {"sportTypeId": 1, "sportTypeKey": "running"},
+  "estimatedDurationInSecs": 3300,
+  "workoutSegments": [{
+    "segmentOrder": 1,
+    "sportType": {"sportTypeId": 1, "sportTypeKey": "running"},
+    "workoutSteps": [
+      {"type": "ExecutableStepDTO", "stepOrder": 1,
+       "stepType": {"stepTypeId": 1, "stepTypeKey": "warmup"},
+       "endCondition": {"conditionTypeId": 2, "conditionTypeKey": "time"},
+       "endConditionValue": 600,
+       "targetType": {"workoutTargetTypeId": 1, "workoutTargetTypeKey": "no.target"}},
+      {"type": "RepeatGroupDTO", "stepOrder": 2,
+       "stepType": {"stepTypeId": 6, "stepTypeKey": "repeat"},
+       "numberOfIterations": 5,
+       "endCondition": {"conditionTypeId": 7, "conditionTypeKey": "iterations"},
+       "endConditionValue": 5,
+       "workoutSteps": [
+         {"type": "ExecutableStepDTO", "stepOrder": 3,
+          "stepType": {"stepTypeId": 3, "stepTypeKey": "interval"},
+          "endCondition": {"conditionTypeId": 3, "conditionTypeKey": "distance"},
+          "endConditionValue": 1000,
+          "targetType": {"workoutTargetTypeId": 6, "workoutTargetTypeKey": "pace.zone"},
+          "targetValueOne": 3.2258,
+          "targetValueTwo": 3.4483},
+         {"type": "ExecutableStepDTO", "stepOrder": 4,
+          "stepType": {"stepTypeId": 4, "stepTypeKey": "recovery"},
+          "endCondition": {"conditionTypeId": 2, "conditionTypeKey": "time"},
+          "endConditionValue": 120,
+          "targetType": {"workoutTargetTypeId": 1, "workoutTargetTypeKey": "no.target"}}
+       ]},
+      {"type": "ExecutableStepDTO", "stepOrder": 5,
+       "stepType": {"stepTypeId": 2, "stepTypeKey": "cooldown"},
+       "endCondition": {"conditionTypeId": 2, "conditionTypeKey": "time"},
+       "endConditionValue": 600,
+       "targetType": {"workoutTargetTypeId": 1, "workoutTargetTypeKey": "no.target"}}
+    ]
+  }]
+}
+```
+
+- `stepOrder` counts every step from 1, the steps inside a repeat group too.
+- Step types: 1 warmup, 2 cooldown, 3 interval, 4 recovery, 5 rest, 6 repeat.
+- End conditions: 1 lap.button (no value), 2 time (seconds), 3 distance (meters),
+  7 iterations (repeat groups only).
+- Targets: 1 no.target, 4 heart.rate.zone (bpm), 6 pace.zone. A pace target is in
+  meters per second, 1000 / (seconds per km): `targetValueOne` is the slower pace,
+  `targetValueTwo` the faster one. 5:10 min/km is 1000 / 310 = 3.2258.
+- `estimatedDurationInSecs` is the sum of the steps, with the distance steps at
+  their target pace.
+
+The command prints `{"id": …, "name": …, "estimated_duration_min": …, "scheduled": …}`
+and the stderr line `garmin: Created workout "5 x 1 km" (ID …).`
 
 ## Output and errors
 
