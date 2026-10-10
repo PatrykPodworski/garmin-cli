@@ -353,6 +353,22 @@ When the scheduling fails, the workout exists without a calendar entry: the comm
 exits 1 with `garmin: Created workout "5 x 1 km" (ID 1234567890) but did not schedule it.`
 followed by the cause. Running it again creates a second copy.
 
+### workout delete
+
+```sh
+garmin workout delete 1234567890 --dry-run
+garmin workout delete 1234567890
+```
+
+Deletes a workout from the Garmin Connect workout library without asking. Take the
+ID from `garmin workouts` or from the output of `garmin workout add`. Garmin also
+removes the workout's calendar entries. The command first reads the workout, so an
+unknown ID fails with the `garmin workout` message and deletes nothing. After the
+deletion, stdout is `{"deleted": 1234567890}` and stderr
+`garmin: Deleted "5 x 1 km".` `--dry-run` only reads the workout: stdout
+`{"would_delete": 1234567890}`, stderr `garmin: Would delete "5 x 1 km".` A workout
+without a name shows as `workout 1234567890`.
+
 ### workout schedule
 
 ```sh

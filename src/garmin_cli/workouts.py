@@ -78,7 +78,8 @@ def fetch_workout(client: GarminClient, workout_id: int) -> dict[str, Any]:
 
 
 def workout(args: argparse.Namespace, connect: Connect) -> Any:
-    raw = fetch_workout(connect(), args.id)
+    client = connect()
+    raw = fetch_workout(client, args.id)
     if args.raw:
         return raw
     # ponytail: a multisport workout's segments are joined into one step list;
