@@ -28,6 +28,8 @@ from garmin_cli import (
     stats,
     weight_add,
     workout_add,
+    workout_schedule,
+    workout_unschedule,
     workouts,
 )
 from garmin_cli.client import Connect
@@ -189,6 +191,8 @@ def build_parser() -> CliParser:
     stats.register(subparsers)
     workouts.register(subparsers)
     workout_add.register(subparsers)
+    workout_schedule.register(subparsers)
+    workout_unschedule.register(subparsers)
     # The default names every choice, the two-word commands like `sleep set` too.
     subparsers.metavar = f"{{{','.join(parser.listed)}}}"
     return parser

@@ -25,3 +25,7 @@ def test_date_yesterday() -> None:
 
 def test_date_iso() -> None:
     assert parse("2026-07-05") == date(2026, 7, 5)
+
+
+def test_date_tomorrow() -> None:
+    assert parse("tomorrow") == date.today() + timedelta(days=1)

@@ -1,10 +1,12 @@
 import argparse
+from datetime import date, timedelta
 from typing import Any
 
 from garminconnect import GarminConnectNotFoundError
 
 from garmin_cli.activities import positive_int
-from garmin_cli.client import Connect
+from garmin_cli.client import Connect, GarminClient
+from garmin_cli.dates import parse_date
 from garmin_cli.errors import GarminCliError
 
 # Workouts per `get_workouts` call, the library's default limit.
@@ -66,14 +68,17 @@ def workouts(args: argparse.Namespace, connect: Connect) -> Any:
     return [summarize(w) for w in found]
 
 
-def workout(args: argparse.Namespace, connect: Connect) -> Any:
-    client = connect()
+def fetch_workout(client: GarminClient, workout_id: int) -> dict[str, Any]:
     try:
-        raw = client.get_workout_by_id(args.id)
+        return client.get_workout_by_id(workout_id)
     except GarminConnectNotFoundError:
         raise GarminCliError(
-            f"No workout with ID {args.id}.", "Run 'garmin workouts' to list IDs."
+            f"No workout with ID {workout_id}.", "Run 'garmin workouts' to list IDs."
         ) from None
+
+
+def workout(args: argparse.Namespace, connect: Connect) -> Any:
+    raw = fetch_workout(connect(), args.id)
     if args.raw:
         return raw
     # ponytail: a multisport workout's segments are joined into one step list;
@@ -84,6 +89,33 @@ def workout(args: argparse.Namespace, connect: Connect) -> Any:
         for step in segment.get("workoutSteps") or []
     ]
     return {**summarize(raw), "steps": steps}
+
+
+def calendar(args: argparse.Namespace, connect: Connect) -> Any:
+    client = connect()
+    first = args.start.year * 12 + args.start.month - 1
+    last = args.end.year * 12 + args.end.month - 1
+    found = [
+        item
+        for month in range(first, last + 1)
+        for item in client.get_scheduled_workouts(month // 12, month % 12 + 1).get(
+            "calendarItems", []
+        )
+        if item.get("itemType") == "workout"
+        and args.start.isoformat() <= item["date"] <= args.end.isoformat()
+    ]
+    found.sort(key=lambda item: item["date"])
+    if args.raw:
+        return found
+    return [
+        {
+            "schedule_id": item.get("id"),
+            "date": item["date"],
+            "workout_id": item.get("workoutId"),
+            "name": item.get("title"),
+        }
+        for item in found
+    ]
 
 
 def register(subparsers: "argparse._SubParsersAction[argparse.ArgumentParser]") -> None:
@@ -108,3 +140,27 @@ def register(subparsers: "argparse._SubParsersAction[argparse.ArgumentParser]") 
         "--raw", action="store_true", help="print the full Garmin response"
     )
     workout_parser.set_defaults(run=workout)
+    # `main` joins `garmin workout calendar` into this one command name. Without a
+    # `help`, `garmin --help` leaves it out.
+    calendar_parser = subparsers.add_parser(
+        "workout calendar",
+        description="Workouts on the Garmin Connect calendar, by date. Each entry "
+        "has the schedule_id that 'garmin workout unschedule' takes.",
+    )
+    today = date.today()
+    for flag, dest, default, shown in (
+        ("--from", "start", today, "today"),
+        ("--to", "end", today + timedelta(weeks=4), "4 weeks after today"),
+    ):
+        calendar_parser.add_argument(
+            flag,
+            dest=dest,
+            metavar="DATE",
+            default=default,
+            type=parse_date,
+            help=f"today | yesterday | tomorrow | YYYY-MM-DD (default: {shown})",
+        )
+    calendar_parser.add_argument(
+        "--raw", action="store_true", help="print the full Garmin response"
+    )
+    calendar_parser.set_defaults(run=calendar)

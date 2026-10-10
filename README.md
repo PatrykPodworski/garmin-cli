@@ -39,7 +39,7 @@ run `garmin login` again.
 
 ## Dates
 
-Every date argument takes `today`, `yesterday` or `YYYY-MM-DD`.
+Every date argument takes `today`, `yesterday`, `tomorrow` or `YYYY-MM-DD`.
 
 ## Commands
 
@@ -353,10 +353,55 @@ When the scheduling fails, the workout exists without a calendar entry: the comm
 exits 1 with `garmin: Created workout "5 x 1 km" (ID 1234567890) but did not schedule it.`
 followed by the cause. Running it again creates a second copy.
 
+### workout schedule
+
+```sh
+garmin workout schedule 987654321 tomorrow
+garmin workout schedule 987654321 2026-07-06
+```
+
+Puts a workout from the workout library on the Garmin Connect calendar; the watch
+gets it on its next sync. stdout is
+`{"schedule_id": 123456789, "date": "2026-07-06", "workout_id": 987654321, "name": "Intervals 4x1k"}`
+and stderr `garmin: Scheduled workout "Intervals 4x1k" (ID 987654321) for 2026-07-06.`
+An unknown workout ID exits 1 before anything is scheduled.
+
+### workout unschedule
+
+```sh
+garmin workout unschedule 123456789
+```
+
+Takes one entry off the calendar by the `schedule_id` from `garmin workout calendar`.
+The workout stays in the workout library. stdout is `{"unscheduled": 123456789}` and
+stderr `garmin: Removed calendar entry 123456789.`
+
+### workout calendar
+
+```sh
+garmin workout calendar                                  # today to 4 weeks after today
+garmin workout calendar --from 2026-07-01 --to 2026-07-31
+```
+
+```json
+[
+  {
+    "schedule_id": 123456789,
+    "date": "2026-07-06",
+    "workout_id": 987654321,
+    "name": "Intervals 4x1k"
+  }
+]
+```
+
+The workouts on the Garmin Connect calendar between `--from` and `--to`, both
+included, oldest first. Other calendar items, such as activities, are left out. An
+empty range prints `[]`.
+
 ## Raw output
 
-`stats`, `sleep`, `weight`, `bp`, `activities`, `activity`, `workouts` and
-`workout` accept `--raw`. It
+`stats`, `sleep`, `weight`, `bp`, `activities`, `activity`, `workouts`, `workout`
+and `workout calendar` accept `--raw`. It
 prints the full Garmin response instead of the summary. `activity --raw` combines
 three responses under `summary`, `splits` and `hr_zones`. `stats --raw` skips the
 not-synced check.
@@ -382,7 +427,8 @@ Messages for status 1:
 | `sleep --night-of` night not synced | `garmin: No sleep data for the night of <date> yet. Sync your watch with Garmin Connect, then try again.` |
 | `sleep set` night has no time zone | `garmin: Garmin Connect sent no time zone for the night ending <date>, so garmin-cli cannot convert the times. Adjust the sleep times in the Garmin Connect app.` |
 | `activity <id>` not found | `garmin: No activity with ID <id>. Run 'garmin activities' to list recent IDs.` |
-| `workout <id>` not found | `garmin: No workout with ID <id>. Run 'garmin workouts' to list IDs.` |
+| `workout <id>` or `workout schedule <id>` not found | `garmin: No workout with ID <id>. Run 'garmin workouts' to list IDs.` |
+| `workout unschedule <id>` not found | `garmin: No calendar entry with schedule ID <id>. Run 'garmin workout calendar' to list schedule IDs.` |
 | Rate limit | `garmin: Garmin is rate-limiting requests from this machine. Wait a few minutes and try again.` |
 | Tokens expired | `garmin: Not logged in: no valid saved login in ~/.garminconnect. Run 'garmin login'.` |
 | Unreadable response | `garmin: Garmin Connect sent a response garmin-cli could not read. Try again in a few minutes; if it keeps failing, rerun with --debug and report it at https://github.com/PatrykPodworski/garmin-cli/issues.` |
