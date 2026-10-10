@@ -6,6 +6,7 @@ from typing import Any, cast
 
 from garmin_cli.client import Connect
 from garmin_cli.dates import parse_date
+from garmin_cli.workout_schedule import schedule
 
 REQUIRED_KEYS = ("workoutName", "sportType", "workoutSegments")
 
@@ -50,7 +51,7 @@ def add_workout(args: argparse.Namespace, connect: Connect) -> Any:
     scheduled = args.schedule.isoformat() if args.schedule else None
     if scheduled:
         try:
-            client.schedule_workout(workout_id, scheduled)
+            schedule(client, created, args.schedule)
         except Exception:
             # `main` reports the cause on the next line.
             print(
@@ -91,6 +92,7 @@ def register(subparsers: "argparse._SubParsersAction[argparse.ArgumentParser]") 
         "--schedule",
         type=parse_date,
         metavar="DATE",
-        help="today | yesterday | YYYY-MM-DD: put the workout on the calendar",
+        help="today | yesterday | tomorrow | YYYY-MM-DD: put the workout on the "
+        "calendar",
     )
     add_parser.set_defaults(run=add_workout, parser=add_parser)

@@ -43,7 +43,7 @@ def test_subcommand_help_exits_0(capsys: pytest.CaptureFixture[str]) -> None:
 
 COMMANDS = "login, weight, bp, sleep, activities, activity, stats, workouts, workout"
 SLEEP_HELP = "Run 'garmin sleep --help' for all options."
-INVALID_DATE = "Use today, yesterday or YYYY-MM-DD."
+INVALID_DATE = "Use today, yesterday, tomorrow or YYYY-MM-DD."
 INVALID_LIMIT = "Use a whole number of 1 or more."
 INVALID_WEIGHT = "Use a number above 0, like 82.4."
 CONFLICT = (
@@ -75,7 +75,7 @@ CONFLICT = (
             "Unexpected argument 'extra' for 'garmin stats'. "
             "Run 'garmin stats --help' for all options.",
         ),
-        (["sleep", "tomorrow"], f"Invalid date 'tomorrow'. {INVALID_DATE}"),
+        (["sleep", "soon"], f"Invalid date 'soon'. {INVALID_DATE}"),
         (
             ["weight", "--from", "2026-13-01"],
             f"Invalid date '2026-13-01'. {INVALID_DATE}",

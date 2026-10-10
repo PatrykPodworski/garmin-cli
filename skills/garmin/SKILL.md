@@ -1,14 +1,15 @@
 ---
 name: garmin
-description: Use when the user asks about their Garmin data — workouts (runs, rides), sleep or sleep score, weight, body fat, blood pressure, calories burned, resting heart rate, body battery or stress — or asks to adjust a night's sleep times, log a weigh-in, add a manual activity, delete an activity, find a workout in their workout library, create or change a structured running workout or delete a workout.
+description: Use when the user asks about their Garmin data — workouts (runs, rides), sleep or sleep score, weight, body fat, blood pressure, calories burned, resting heart rate, body battery or stress — or asks to adjust a night's sleep times, log a weigh-in, add a manual activity, delete an activity, find a workout in their workout library, create or change a structured running workout, delete a workout, or put a workout on their calendar, take it off or see what is scheduled.
 ---
 
 # garmin
 
 `garmin` reads the user's Garmin Connect data and prints JSON. Run it with Bash.
-Seven commands change data: `garmin weight add`, `garmin sleep set`,
+Nine commands change data: `garmin weight add`, `garmin sleep set`,
 `garmin activity add`, `garmin activity delete`, `garmin workout add`,
-`garmin workout edit` and `garmin workout delete`.
+`garmin workout edit`, `garmin workout delete`, `garmin workout schedule` and
+`garmin workout unschedule`.
 
 ## Login
 
@@ -19,7 +20,7 @@ Leave the token folder (`~/.garminconnect` or `$GARMINTOKENS`) unread.
 
 ## Commands
 
-Every date takes `today`, `yesterday` or `YYYY-MM-DD`.
+Every date takes `today`, `yesterday`, `tomorrow` or `YYYY-MM-DD`.
 
 ```sh
 garmin stats [DATE]                    # calories, resting HR, body battery, stress (default today)
@@ -37,7 +38,10 @@ garmin workouts --limit 50              # workout library, newest created first,
 garmin workout ID                      # one workout with its steps; ID from `workouts`
 garmin workout add --file FILE [--schedule DATE]  # save a workout (Garmin JSON, - for stdin), optionally on the calendar
 garmin workout edit ID --file FILE      # replace a workout with changed `workout ID --raw` JSON; keeps ID and calendar
-garmin workout delete ID [--dry-run]    # delete a workout and its calendar entries; ID from `workouts`
+garmin workout delete ID [--dry-run]   # delete a workout and its calendar entries; ID from `workouts`
+garmin workout schedule ID DATE         # put a library workout on the calendar; ID from `workouts`
+garmin workout unschedule SCHEDULE_ID   # take one entry off the calendar; schedule_id from `workout calendar`
+garmin workout calendar --from DATE --to DATE  # scheduled workouts (default today to 4 weeks after --from)
 ```
 
 `garmin <command> --help` lists every flag.
@@ -73,6 +77,10 @@ garmin workout delete ID [--dry-run]    # delete a workout and its calendar entr
   you to delete. When the user names the workout instead of giving its ID, look up
   the ID with `garmin workouts`, run `garmin workout delete ID --dry-run`, and
   confirm the match with the user first.
+- `garmin workout schedule` and `garmin workout unschedule` write to the user's
+  Garmin calendar. Run them only for a workout and date the user named. Before
+  scheduling, check `garmin workout calendar` for that date, so the workout is not
+  scheduled twice. Unschedule only an entry the user asked to remove.
 - Summary floats are rounded to two decimals. Quote them as printed.
 - Start with the summary. Add `--raw` only when the field you need is missing from it:
   raw output is the full Garmin response, many times larger.
@@ -154,7 +162,7 @@ Match the message first, then the exit code:
 - Any other exit 1 (not logged in, not synced, rate limit, no connection, unreadable
   response): tell the user the second sentence and wait for them.
 - Exit 2: bad arguments. The message names the fix (`Did you mean 'sleep'?`,
-  `Use today, yesterday or YYYY-MM-DD.`); correct the call and retry once.
+  `Use today, yesterday, tomorrow or YYYY-MM-DD.`); correct the call and retry once.
 
 ## Privacy
 

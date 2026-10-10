@@ -11,11 +11,13 @@ def parse_date(value: str) -> date:
         return date.today()
     if value == "yesterday":
         return date.today() - timedelta(days=1)
+    if value == "tomorrow":
+        return date.today() + timedelta(days=1)
     try:
         return datetime.strptime(value, "%Y-%m-%d").date()
     except ValueError:
         raise argparse.ArgumentTypeError(
-            f"Invalid date '{value}'. Use today, yesterday or YYYY-MM-DD."
+            f"Invalid date '{value}'. Use today, yesterday, tomorrow or YYYY-MM-DD."
         ) from None
 
 
@@ -67,12 +69,12 @@ def add_date_argument(parser: argparse._ActionsContainer) -> None:
         nargs="?",
         default=date.today(),
         type=parse_date,
-        help="today | yesterday | YYYY-MM-DD (default: today)",
+        help="today | yesterday | tomorrow | YYYY-MM-DD (default: today)",
     )
 
 
 def add_range_arguments(parser: argparse.ArgumentParser, default: date | None) -> None:
-    help = "today | yesterday | YYYY-MM-DD"
+    help = "today | yesterday | tomorrow | YYYY-MM-DD"
     if default:
         help += " (default: today)"
     for flag, dest in (("--from", "start"), ("--to", "end")):

@@ -147,7 +147,7 @@ def test_workout_add_invalid_schedule_exits_2(
     assert result == (
         2,
         "",
-        "garmin: Invalid date 'soon'. Use today, yesterday or YYYY-MM-DD.\n",
+        "garmin: Invalid date 'soon'. Use today, yesterday, tomorrow or YYYY-MM-DD.\n",
     )
     assert client.calls == []
 
