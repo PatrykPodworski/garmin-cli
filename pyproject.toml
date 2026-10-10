@@ -55,8 +55,6 @@ min_confidence = 60
 # Keyword parameters of the client protocols; vulture does not count keyword
 # arguments at call sites as uses.
 ignore_names = ["activitytype", "api"]
-# pytest finds fixtures by name.
-ignore_decorators = ["@pytest.fixture"]
 
 [tool.mutmut]
 source_paths = ["src/"]

@@ -115,10 +115,10 @@ the same date, and a later one is on the evening before. Garmin Connect recomput
 the sleep stages at once, but the sleep score may update later. A start equal to
 the end exits with status 2, and a night that has not synced exits with status 1.
 
-Times are converted with this machine's time zone, so a night with a clock change
-comes out right. A time that the change skips or shows twice, like 02:30 on such a
-night, exits with status 2. A night slept in another time zone exits with status 1;
-adjust it in the Garmin Connect app.
+The times are converted with the night's own offsets from Garmin Connect: the start
+with the offset at lights-out, the end with the offset at wake-up. A night with a
+clock change comes out right, and so does a night in another time zone than this
+machine's.
 
 ### weight
 
@@ -299,7 +299,6 @@ Messages for status 1:
 | `sleep` night not synced | `garmin: No sleep data for the night ending <date> yet. Sync your watch with Garmin Connect, or use --night-of if <date> is the night you went to bed.` |
 | `sleep --night-of` night not synced | `garmin: No sleep data for the night of <date> yet. Sync your watch with Garmin Connect, then try again.` |
 | `sleep set` night has no time zone | `garmin: Garmin Connect sent no time zone for the night ending <date>, so garmin-cli cannot convert the times. Adjust the sleep times in the Garmin Connect app.` |
-| `sleep set` night in another time zone | `garmin: The night ending <date> was not in this machine's time zone, so garmin-cli cannot convert the times. Adjust the sleep times in the Garmin Connect app.` |
 | `activity <id>` not found | `garmin: No activity with ID <id>. Run 'garmin activities' to list recent IDs.` |
 | Rate limit | `garmin: Garmin is rate-limiting requests from this machine. Wait a few minutes and try again.` |
 | Tokens expired | `garmin: Not logged in: no valid saved login in ~/.garminconnect. Run 'garmin login'.` |
