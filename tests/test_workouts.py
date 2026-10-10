@@ -318,6 +318,18 @@ def test_workout_calendar_to_defaults_to_4_weeks_after_from(
     assert [entry["schedule_id"] for entry in result] == [1]
 
 
+def test_workout_calendar_one_day(capsys: pytest.CaptureFixture[str]) -> None:
+    client = CalendarClient({(2026, 10): [EARLY, MID, LATE]})
+
+    result = run_json(
+        ["workout", "calendar", "--from", "2026-10-12", "--to", "2026-10-12"],
+        client,
+        capsys,
+    )
+
+    assert [entry["schedule_id"] for entry in result] == [7002]
+
+
 def test_workout_calendar_to_before_from_exits_2(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
