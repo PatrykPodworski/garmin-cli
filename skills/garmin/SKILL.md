@@ -1,6 +1,6 @@
 ---
 name: garmin
-description: Use when the user asks about their Garmin data — workouts (runs, rides), sleep or sleep score, weight, body fat, blood pressure, calories burned, resting heart rate, body battery or stress — or asks to adjust a night's sleep times, log a weigh-in, add a manual activity, delete an activity, find a workout in their workout library, create or change a structured running workout, delete a workout, or put a workout on their calendar, take it off or see what is scheduled.
+description: Use when the user asks about their Garmin data — workouts (runs, rides), sleep or sleep score, weight, body fat, blood pressure, calories burned, resting heart rate, body battery, stress, training readiness, training status, training load, recovery time or HRV status — or asks to adjust a night's sleep times, log a weigh-in, add a manual activity, delete an activity, find a workout in their workout library, create or change a structured running workout, delete a workout, or put a workout on their calendar, take it off or see what is scheduled.
 ---
 
 # garmin
@@ -24,6 +24,7 @@ Every date takes `today`, `yesterday`, `tomorrow` or `YYYY-MM-DD`.
 
 ```sh
 garmin stats [DATE]                    # calories, resting HR, body battery, stress (default today)
+garmin recovery view [DATE]            # training readiness, training status and load, recovery time, HRV status (default today)
 garmin sleep [DATE]                    # the night that ended on the morning of DATE (default today)
 garmin sleep --night-of DATE           # the night that started on the evening of DATE
 garmin sleep set DATE --start HH:MM --end HH:MM  # move that night's sleep window (local times)
