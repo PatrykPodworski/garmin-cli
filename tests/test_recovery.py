@@ -181,6 +181,16 @@ def test_recovery_reached_zero_is_0_hours(capsys: pytest.CaptureFixture[str]) ->
     assert result["recovery_time_h"] == 0
 
 
+def test_recovery_snapshot_without_timestamp_is_oldest(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    untimed = {"score": 10}
+
+    result = run_json(["recovery", "view", DAY], client([READINESS, untimed]), capsys)
+
+    assert result["readiness"]["score"] == 62
+
+
 def test_recovery_missing_fields_are_null(capsys: pytest.CaptureFixture[str]) -> None:
     fake = client(
         [{"score": 50}],
@@ -312,6 +322,7 @@ def test_recovery_raw_prints_full_responses(
         "training_status": status,
         "hrv": HRV,
     }
+    assert [call[1] for call in fake.calls] == [(DAY,)] * 3
 
 
 def test_recovery_raw_skips_not_synced_check(
@@ -331,4 +342,19 @@ def test_recovery_without_command_exits_2(capsys: pytest.CaptureFixture[str]) ->
     assert exit.value.code == 2
     assert capsys.readouterr().err == (
         "garmin: No command given. Run 'garmin recovery <command>', one of: view.\n"
+    )
+
+
+def test_recovery_unexpected_argument_names_view(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    with pytest.raises(SystemExit) as exit:
+        main(["recovery", "view", DAY, "extra"])
+
+    assert exit.value.code == 2
+    out = capsys.readouterr()
+    assert out.out == ""
+    assert out.err == (
+        "garmin: Unexpected argument 'extra' for 'garmin recovery view'. "
+        "Run 'garmin recovery view --help' for all options.\n"
     )
