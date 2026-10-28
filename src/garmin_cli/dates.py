@@ -32,6 +32,15 @@ def gmt_ms(local: datetime, offset_ms: int) -> int:
     return int(local.timestamp()) * 1000 - offset_ms
 
 
+def sleep_window(wake_up: date, start: time, end: time) -> tuple[datetime, datetime]:
+    """Wall-clock start and end, encoded as UTC, of a night that ends on `wake_up`.
+    A start later than the end is on the evening before."""
+    start_at = datetime.combine(wake_up, start, UTC)
+    if start > end:
+        start_at -= timedelta(days=1)
+    return start_at, datetime.combine(wake_up, end, UTC)
+
+
 def parse_time(value: str) -> time:
     try:
         return datetime.strptime(value, "%H:%M").time()
