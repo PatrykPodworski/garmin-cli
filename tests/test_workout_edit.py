@@ -141,8 +141,10 @@ def test_workout_edit_update_error_exits_1(
     code, out, err = run(["workout", "edit", "501", "--file", path], client, capsys)
 
     assert (code, out) == (1, "")
-    assert err.startswith("garmin: Could not reach Garmin Connect")
-    assert "Updated" not in err
+    assert err == (
+        "garmin: Garmin Connect rejected the request (HTTP 400). Check the values you "
+        "gave, or rerun with --debug to see Garmin's response.\n"
+    )
     assert [call[0] for call in client.calls] == [
         "get_workout_by_id",
         "update_workout",

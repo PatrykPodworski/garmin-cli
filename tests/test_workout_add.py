@@ -293,8 +293,10 @@ def test_workout_add_upload_error_exits_1(
     )
 
     assert (code, out) == (1, "")
-    assert err.startswith("garmin: Could not reach Garmin Connect")
-    assert "Created" not in err
+    assert err == (
+        "garmin: Garmin Connect rejected the request (HTTP 400). Check the values you "
+        "gave, or rerun with --debug to see Garmin's response.\n"
+    )
     assert [call[0] for call in client.calls] == ["upload_workout"]
 
 

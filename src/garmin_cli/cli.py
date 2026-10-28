@@ -39,6 +39,10 @@ from garmin_cli.errors import GarminCliError
 
 REQUIRED = "the following arguments are required: "
 ISSUES = "https://github.com/PatrykPodworski/garmin-cli/issues"
+RATE_LIMITED = (
+    "Garmin is rate-limiting requests from this machine. "
+    "Wait a few minutes and try again."
+)
 
 
 class CliParser(argparse.ArgumentParser):
@@ -160,6 +164,14 @@ def reason(error: BaseException) -> str:
     return text[:100]
 
 
+def client_error(error: BaseException) -> int | None:
+    """The 4xx status Garmin answered with. garminconnect puts it only in the
+    message, as `API Error <status>`; a 5xx or a network failure has none."""
+    if match := re.search(r"API Error (4\d\d)\b", str(error)):
+        return int(match[1])
+    return None
+
+
 def round_floats(value: Any) -> Any:
     if isinstance(value, float):
         return round(value, 2)
@@ -222,10 +234,7 @@ def main(argv: list[str] | None = None, connect: Connect = auth.connect) -> int:
     except GarminCliError as error:
         message = str(error)
     except GarminConnectTooManyRequestsError:
-        message = (
-            "Garmin is rate-limiting requests from this machine. "
-            "Wait a few minutes and try again."
-        )
+        message = RATE_LIMITED
     except GarminConnectAuthenticationError:
         message = str(auth.not_logged_in())
     # Subclasses RequestException, so it goes before the network branch.
@@ -239,10 +248,25 @@ def main(argv: list[str] | None = None, connect: Connect = auth.connect) -> int:
         GarminConnectConnectionError,
         requests.exceptions.RequestException,
     ) as error:
-        message = (
-            f"Could not reach Garmin Connect ({reason(error)}). "
-            "Check your internet connection and try again."
-        )
+        status = client_error(error)
+        # Writes call garminconnect's HTTP client directly, which raises these
+        # as connection errors instead of its authentication and rate-limit ones.
+        if status in (401, 403):
+            message = str(auth.not_logged_in())
+        elif status == 429:
+            message = RATE_LIMITED
+        elif status:
+            if args.debug:
+                raise
+            message = (
+                f"Garmin Connect rejected the request (HTTP {status}). Check the "
+                "values you gave, or rerun with --debug to see Garmin's response."
+            )
+        else:
+            message = (
+                f"Could not reach Garmin Connect ({reason(error)}). "
+                "Check your internet connection and try again."
+            )
     except Exception as error:
         if args.debug:
             raise
