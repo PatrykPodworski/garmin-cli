@@ -271,8 +271,8 @@ def test_sleep_set_garmin_error_on_put(capsys: pytest.CaptureFixture[str]) -> No
     out = capsys.readouterr()
     assert out.out == ""
     assert out.err == (
-        "garmin: Could not reach Garmin Connect (GarminConnectConnectionError: API "
-        "Error 400 - Bad request). Check your internet connection and try again.\n"
+        "garmin: Garmin Connect rejected the request (HTTP 400). Check the values you "
+        "gave, or rerun with --debug to see Garmin's response.\n"
     )
     assert [call[0] for call in client.calls] == ["get_sleep_data"]
 

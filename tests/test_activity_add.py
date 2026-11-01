@@ -312,7 +312,10 @@ def test_activity_add_garmin_error_exits_1(
     code, err = run_error([*ARGS, "--duration", "45"], client, capsys)
 
     assert code == 1
-    assert err.startswith("garmin: Could not reach Garmin Connect")
+    assert err == (
+        "garmin: Garmin Connect rejected the request (HTTP 400). Check the values you "
+        "gave, or rerun with --debug to see Garmin's response.\n"
+    )
 
 
 def test_activity_add_after_debug_flag(capsys: pytest.CaptureFixture[str]) -> None:

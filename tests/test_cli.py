@@ -7,6 +7,7 @@ from conftest import FakeClient, run_json
 from garminconnect import (
     GarminConnectAuthenticationError,
     GarminConnectConnectionError,
+    GarminConnectNotFoundError,
     GarminConnectTooManyRequestsError,
 )
 
@@ -230,6 +231,14 @@ def test_raw_help_on_every_data_command(
 
 
 NETWORK = "Check your internet connection and try again."
+REJECTED = "Check the values you gave, or rerun with --debug to see Garmin's response."
+RATE_LIMITED = (
+    "Garmin is rate-limiting requests from this machine. "
+    "Wait a few minutes and try again."
+)
+NOT_LOGGED_IN = (
+    "Not logged in: no valid saved login in ~/.garminconnect. Run 'garmin login'."
+)
 UNEXPECTED = (
     "Rerun with --debug and report it at "
     "https://github.com/PatrykPodworski/garmin-cli/issues."
@@ -242,14 +251,39 @@ UNEXPECTED = (
         (GarminCliError("Not synced.", "Sync it."), "Not synced. Sync it."),
         (
             GarminConnectTooManyRequestsError("Rate limit exceeded: 429"),
-            "Garmin is rate-limiting requests from this machine. "
-            "Wait a few minutes and try again.",
+            RATE_LIMITED,
         ),
         (
             GarminConnectConnectionError("Stats server error (503)\nbody"),
             "Could not reach Garmin Connect (GarminConnectConnectionError: "
             f"Stats server error (503)). {NETWORK}",
         ),
+        # garminconnect's messages: `Garmin.connectapi` wraps the HTTP client's
+        # `API Error <status> - <detail>`.
+        (
+            GarminConnectNotFoundError("API call client error (404): API Error 404"),
+            f"Garmin Connect rejected the request (HTTP 404). {REJECTED}",
+        ),
+        (
+            GarminConnectConnectionError(
+                "API call client error (422): API Error 422 - Invalid date"
+            ),
+            f"Garmin Connect rejected the request (HTTP 422). {REJECTED}",
+        ),
+        (
+            GarminConnectConnectionError("API call HTTP error: API Error 503"),
+            "Could not reach Garmin Connect (GarminConnectConnectionError: API call "
+            f"HTTP error: API Error 503). {NETWORK}",
+        ),
+        (
+            GarminConnectConnectionError(
+                "Connection error: HTTPSConnectionPool(host='connectapi.garmin.com', "
+                "port=443): Read timed out."
+            ),
+            "Could not reach Garmin Connect (GarminConnectConnectionError: Connection "
+            f"error: HTTPSConnectionPool(host='connectapi.garmin.com', po). {NETWORK}",
+        ),
+        (GarminConnectConnectionError("API Error 429"), RATE_LIMITED),
         (
             requests.exceptions.ConnectionError("connection refused"),
             f"Could not reach Garmin Connect (ConnectionError: connection refused). "
@@ -316,6 +350,43 @@ def test_expired_token_during_data_call(
         "Run 'garmin login'.\n"
     )
     assert out.out == ""
+
+
+@pytest.mark.parametrize("status", [401, 403])
+def test_rejected_login_on_a_write_says_not_logged_in(
+    status: int, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.delenv("GARMINTOKENS", raising=False)
+    # Writes call garminconnect's HTTP client, which raises a 401 or 403 as
+    # a connection error after its own token refresh.
+    client: Any = RaisingClient(GarminConnectConnectionError(f"API Error {status}"))
+
+    assert main(["stats"], connect=lambda: client) == 1
+    assert capsys.readouterr().err == f"garmin: {NOT_LOGGED_IN}\n"
+
+
+def test_debug_reraises_rejected_request() -> None:
+    error = GarminConnectConnectionError("API Error 400 - Invalid weight")
+    client: Any = RaisingClient(error)
+
+    with pytest.raises(GarminConnectConnectionError) as raised:
+        main(["--debug", "stats"], connect=lambda: client)
+
+    assert raised.value is error
+
+
+def test_debug_keeps_network_error_message(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    client: Any = RaisingClient(
+        GarminConnectConnectionError("API call HTTP error: API Error 500")
+    )
+
+    assert main(["--debug", "stats"], connect=lambda: client) == 1
+    assert capsys.readouterr().err == (
+        "garmin: Could not reach Garmin Connect (GarminConnectConnectionError: API "
+        f"call HTTP error: API Error 500). {NETWORK}\n"
+    )
 
 
 def test_debug_reraises_unexpected_error() -> None:
