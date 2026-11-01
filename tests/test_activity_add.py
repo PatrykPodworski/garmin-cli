@@ -1,6 +1,6 @@
 from pathlib import Path
 from types import SimpleNamespace
-from typing import Any
+from typing import Any, cast
 
 import pytest
 from conftest import FakeClient, run_json
@@ -75,7 +75,10 @@ def test_activity_add_creates_and_prints_the_activity(
         },
     }
     library = Garmin.create_manual_activity(
-        SimpleNamespace(create_manual_activity_from_json=lambda payload: payload),
+        cast(
+            Any,
+            SimpleNamespace(create_manual_activity_from_json=lambda payload: payload),
+        ),
         "2026-07-05T18:30:00.000",
         "Europe/Warsaw",
         "strength_training",
