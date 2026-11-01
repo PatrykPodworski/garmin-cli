@@ -23,6 +23,7 @@ from garmin_cli import (
     activity_delete,
     auth,
     health,
+    recovery,
     sleep,
     sleep_set,
     stats,
@@ -121,7 +122,7 @@ class CliParser(argparse.ArgumentParser):
         """Reports an argument the parser of the parsed command did not consume."""
         command = args.command
         subparser = self.commands[command]
-        # `garmin weight add` is the only nested command.
+        # `garmin weight add` and `garmin recovery view` are nested commands.
         if getattr(args, "subcommand", None):
             command = args.subcommand
             subparser = cast(CliParser, subparser).commands[command]
@@ -191,6 +192,7 @@ def build_parser() -> CliParser:
     activity_add.register(subparsers)
     activity_delete.register(subparsers)
     stats.register(subparsers)
+    recovery.register(subparsers)
     workouts.register(subparsers)
     workout_add.register(subparsers)
     workout_edit.register(subparsers)

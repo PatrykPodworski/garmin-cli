@@ -29,7 +29,10 @@ def test_help_exits_0(capsys: pytest.CaptureFixture[str]) -> None:
     assert exit.value.code == 0
     help = capsys.readouterr().out
     assert "usage: garmin" in help
-    assert "{login,weight,bp,sleep,activities,activity,stats,workouts,workout}" in help
+    assert (
+        "{login,weight,bp,sleep,activities,activity,stats,recovery,workouts,workout}"
+        in help
+    )
     assert "sleep set" not in help
 
 
@@ -41,7 +44,9 @@ def test_subcommand_help_exits_0(capsys: pytest.CaptureFixture[str]) -> None:
     assert capsys.readouterr().out.startswith("usage: garmin sleep")
 
 
-COMMANDS = "login, weight, bp, sleep, activities, activity, stats, workouts, workout"
+COMMANDS = (
+    "login, weight, bp, sleep, activities, activity, stats, recovery, workouts, workout"
+)
 SLEEP_HELP = "Run 'garmin sleep --help' for all options."
 INVALID_DATE = "Use today, yesterday, tomorrow or YYYY-MM-DD."
 INVALID_LIMIT = "Use a whole number of 1 or more."

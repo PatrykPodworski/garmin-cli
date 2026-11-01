@@ -67,6 +67,72 @@ garmin stats 2026-07-05
 The daily summary: calories, resting heart rate, the day's highest and lowest body
 battery, and average stress. A day that has not synced yet exits with status 1.
 
+### recovery view
+
+```sh
+garmin recovery view              # today
+garmin recovery view yesterday
+garmin recovery view 2026-07-05
+```
+
+```json
+{
+  "date": "2026-07-05",
+  "recovery_time_h": 12.5,
+  "readiness": {
+    "score": 62,
+    "level": "MODERATE",
+    "feedback": "RECOVERING",
+    "factors": {
+      "sleep": {"pct": 80, "feedback": "GOOD"},
+      "recovery_time": {"pct": 40, "feedback": "MODERATE"},
+      "hrv": {"pct": 70, "feedback": "GOOD"},
+      "acute_load": {"pct": 90, "feedback": "VERY_GOOD"},
+      "sleep_history": {"pct": 60, "feedback": "MODERATE"},
+      "stress_history": {"pct": 85, "feedback": "GOOD"}
+    }
+  },
+  "training_status": {
+    "status": "PRODUCTIVE",
+    "since": "2026-07-01",
+    "paused": false,
+    "acute_load": 400,
+    "chronic_load": 380,
+    "chronic_load_min": 300.0,
+    "chronic_load_max": 500.0,
+    "acwr": 1.05,
+    "acwr_status": "OPTIMAL",
+    "load_focus": "ANAEROBIC_SHORTAGE",
+    "monthly_load": {
+      "aerobic_low": {"load": 500.0, "target_min": 400, "target_max": 800},
+      "aerobic_high": {"load": 600.0, "target_min": 300, "target_max": 700},
+      "anaerobic": {"load": 50.0, "target_min": 100, "target_max": 300}
+    }
+  },
+  "hrv": {
+    "status": "BALANCED",
+    "last_night_ms": 50,
+    "weekly_avg_ms": 52,
+    "baseline_low_ms": 45,
+    "baseline_high_ms": 60
+  }
+}
+```
+
+Garmin's recovery verdict for one day. `readiness` is the newest training readiness
+snapshot of the day, with each contributing factor's percentage and feedback.
+`recovery_time_h` is the recovery time left, in hours, from the same snapshot.
+`training_status` comes from the primary training device: the status without
+Garmin's number suffix (`PRODUCTIVE_3` is `PRODUCTIVE`), the acute and chronic
+training load and their ratio (`acwr`), Garmin's load focus feedback, and the
+monthly load per intensity with its target range. `hrv` is last night's average HRV, the 7-day average, the balanced
+baseline range and the status. Garmin's own keys, such as `MODERATE` or `BALANCED`,
+are printed as Garmin sends them.
+
+A section Garmin has no data for that day is `null`. Watches without training
+readiness, such as the fenix 6, always print `null` for `readiness` and
+`recovery_time_h`. A day with no section at all exits with status 1.
+
 ### sleep
 
 ```sh
@@ -435,13 +501,14 @@ activities, are left out. An empty range prints `[]`.
 
 ## Raw output
 
-`stats`, `sleep`, `weight`, `bp`, `activities`, `activity`, `workouts`, `workout`
-and `workout calendar` accept `--raw`. It
+`stats`, `recovery view`, `sleep`, `weight`, `bp`, `activities`, `activity`,
+`workouts`, `workout` and `workout calendar` accept `--raw`. It
 prints the full Garmin response instead of the summary. `activity --raw` combines
-three responses under `summary`, `splits` and `hr_zones`. `workout calendar --raw`
+three responses under `summary`, `splits` and `hr_zones`, and `recovery view --raw`
+under `training_readiness`, `training_status` and `hrv`. `workout calendar --raw`
 prints Garmin's calendar items for the workouts in the range, without the other
-item types. `stats --raw` skips the
-not-synced check.
+item types. `stats --raw` and
+`recovery view --raw` skip the not-synced check.
 
 ## Output and exit codes
 
@@ -460,6 +527,7 @@ Messages for status 1:
 | Case | Message |
 |---|---|
 | `stats` day not synced | `garmin: No daily summary for <date> yet. Sync your watch with Garmin Connect, then try again.` |
+| `recovery view` day not synced | `garmin: No recovery data for <date> yet. Sync your watch with Garmin Connect, then try again.` |
 | `sleep` night not synced | `garmin: No sleep data for the night ending <date> yet. Sync your watch with Garmin Connect, or use --night-of if <date> is the night you went to bed.` |
 | `sleep --night-of` night not synced | `garmin: No sleep data for the night of <date> yet. Sync your watch with Garmin Connect, then try again.` |
 | `sleep set` night has no time zone | `garmin: Garmin Connect sent no time zone for the night ending <date>, so garmin-cli cannot convert the times. Adjust the sleep times in the Garmin Connect app.` |
