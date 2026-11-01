@@ -1,9 +1,9 @@
 import argparse
-from datetime import UTC, date, datetime, timedelta
+from datetime import date
 from typing import Any
 
 from garmin_cli.client import Connect
-from garmin_cli.dates import gmt_ms, parse_time
+from garmin_cli.dates import gmt_ms, parse_time, sleep_window
 from garmin_cli.errors import GarminCliError
 from garmin_cli.sleep import add_night_arguments, fetch, summarize
 
@@ -27,10 +27,7 @@ def set_sleep(args: argparse.Namespace, connect: Connect) -> Any:
             )
         offsets.append(local - gmt)
     wake_up = date.fromisoformat(night["calendarDate"])
-    end = datetime.combine(wake_up, args.end, UTC)
-    start = datetime.combine(wake_up, args.start, UTC)
-    if args.start > args.end:
-        start -= timedelta(days=1)
+    start, end = sleep_window(wake_up, args.start, args.end)
     # The night's own offsets at lights-out and wake-up give GMT whatever the
     # machine's time zone is, also when the clocks change that night.
     start_ms, end_ms = gmt_ms(start, offsets[0]), gmt_ms(end, offsets[1])
