@@ -287,18 +287,16 @@ def test_workout_calendar_defaults_to_the_next_4_weeks(
 ) -> None:
     today = date.today()
     end = today + timedelta(weeks=4)
-    client = CalendarClient(
-        {
-            (today.year, today.month): [
-                scheduled(1, today.isoformat(), 501, "Test"),
-                scheduled(2, (today - timedelta(days=1)).isoformat(), 501, "Test"),
-            ],
-            (end.year, end.month): [
-                scheduled(3, end.isoformat(), 501, "Test"),
-                scheduled(4, (end + timedelta(days=1)).isoformat(), 501, "Test"),
-            ],
-        }
-    )
+    months: dict[tuple[int, int], list[Any]] = {}
+    for entry in (
+        scheduled(1, today.isoformat(), 501, "Test"),
+        scheduled(2, (today - timedelta(days=1)).isoformat(), 501, "Test"),
+        scheduled(3, end.isoformat(), 501, "Test"),
+        scheduled(4, (end + timedelta(days=1)).isoformat(), 501, "Test"),
+    ):
+        day = date.fromisoformat(entry["date"])
+        months.setdefault((day.year, day.month), []).append(entry)
+    client = CalendarClient(months)
 
     result = run_json(["workout", "calendar"], client, capsys)
 
