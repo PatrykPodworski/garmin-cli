@@ -1,6 +1,6 @@
 ---
 name: garmin
-description: Use when the user asks about their Garmin data — workouts (runs, rides), sleep or sleep score, weight, body fat, blood pressure, calories burned, resting heart rate, body battery, stress, training readiness, training status, training load, recovery time or HRV status — or asks to adjust a night's sleep times, log a weigh-in, add a manual activity, delete an activity, find a workout in their workout library, create or change a structured running workout, delete a workout, or put a workout on their calendar, take it off or see what is scheduled.
+description: Use when the user asks about their Garmin data — workouts (runs, rides), sleep or sleep score, weight, body fat, blood pressure, calories burned, resting heart rate, body battery, stress, training readiness, training status, training load, recovery time or HRV status — or asks to adjust a night's sleep times, log a weigh-in, add a manual activity, delete an activity, find a workout in their workout library, create or change a structured running workout, create a strength workout with exercises, sets, reps and weights, look up a strength exercise name, delete a workout, or put a workout on their calendar, take it off or see what is scheduled.
 ---
 
 # garmin
@@ -38,11 +38,13 @@ garmin activity delete ID [--dry-run]  # delete an activity; ID from `activities
 garmin workouts --limit 50              # workout library, newest created first, default limit 20
 garmin workout ID                      # one workout with its steps; ID from `workouts`
 garmin workout add --file FILE [--schedule DATE]  # save a workout (Garmin JSON, - for stdin), optionally on the calendar
+garmin workout add --strength --file FILE [--schedule DATE]  # save a strength workout from the short format below
 garmin workout edit ID --file FILE      # replace a workout with changed `workout ID --raw` JSON; keeps ID and calendar
 garmin workout delete ID [--dry-run]   # delete a workout and its calendar entries; ID from `workouts`
 garmin workout schedule ID DATE         # put a library workout on the calendar; ID from `workouts`
 garmin workout unschedule SCHEDULE_ID   # take one entry off the calendar; schedule_id from `workout calendar`
 garmin workout calendar --from DATE --to DATE  # scheduled workouts (default today to 4 weeks after --from)
+garmin exercise list --search TEXT [--limit N]  # strength exercise names for --strength files, no login
 ```
 
 `garmin <command> --help` lists every flag.
@@ -66,7 +68,8 @@ garmin workout calendar --from DATE --to DATE  # scheduled workouts (default tod
   date or name instead of ID, look up its ID with `garmin activities`, run
   `garmin activity delete ID --dry-run`, and confirm the match with the user first.
 - `garmin workout add` writes to the user's Garmin account. Build the workout the
-  user described from the example in "Workout JSON" below, and add `--schedule` only
+  user described from the example in "Workout JSON" below, or for a strength workout
+  from "Strength workout" below with `--strength`, and add `--schedule` only
   for a date the user gave. When it exits 1 after `Created workout`, the workout
   exists but is not on the calendar: tell the user, and do not run it again.
 - `garmin workout edit` replaces the whole workout in the user's Garmin account.
@@ -147,6 +150,38 @@ change the names, counts and values. It has a 10-minute warm-up, 5 × (1 km at
 
 The command prints `{"id": …, "name": …, "estimated_duration_min": …, "scheduled": …}`
 and the stderr line `garmin: Created workout "5 x 1 km" (ID …).`
+
+## Strength workout
+
+`garmin workout add --strength --file FILE` takes this shorter format. Look up each
+exercise with `garmin exercise list --search WORDS` and use a `name` it prints.
+
+```json
+{
+  "name": "Upper A",
+  "note": "optional workout notes, max 512 characters",
+  "warmup": {"time_s": 300},
+  "blocks": [
+    {"sets": 3, "steps": [
+      {"exercise": "Barbell Bench Press", "reps": 8, "weight_kg": 42.5, "note": "max 200 characters"},
+      {"rest": true, "time_s": 90}
+    ]},
+    {"sets": 2, "steps": [
+      {"exercise": "Plank", "time_s": 40},
+      {"rest": true}
+    ]}
+  ],
+  "cooldown": {}
+}
+```
+
+- A block repeats its `steps` `sets` times. `name` and `blocks` are required.
+- A step ends after `reps` or `time_s` seconds; with neither, on the lap button.
+  Rest, warm-up and cool-down take only `time_s` (and `note`).
+- `weight_kg` is kilograms. Give it only when the user named a weight; leave it out
+  for body-weight exercises. Pounds are not supported: convert and tell the user.
+- An unknown exercise exits 2 with `Did you mean '…'?`. Use that name only when it
+  is clearly what the user meant; otherwise search again or ask.
 
 ## Output and errors
 

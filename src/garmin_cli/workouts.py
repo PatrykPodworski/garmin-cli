@@ -8,6 +8,7 @@ from garmin_cli.activities import positive_int
 from garmin_cli.client import Connect, GarminClient
 from garmin_cli.dates import parse_date
 from garmin_cli.errors import GarminCliError
+from garmin_cli.exercises import display_name
 
 # Workouts per `get_workouts` call, the library's default limit.
 PAGE = 100
@@ -41,9 +42,12 @@ def summarize(raw: dict[str, Any]) -> dict[str, Any]:
 def summarize_step(raw: dict[str, Any]) -> dict[str, Any]:
     step = {
         "type": (raw.get("stepType") or {}).get("stepTypeKey"),
+        "exercise": display_name(raw.get("category"), raw.get("exerciseName")),
         "iterations": raw.get("numberOfIterations"),
         "end": (raw.get("endCondition") or {}).get("conditionTypeKey"),
         "end_value": raw.get("endConditionValue"),
+        "weight": raw.get("weightValue"),
+        "weight_unit": (raw.get("weightUnit") or {}).get("unitKey"),
         "target": (raw.get("targetType") or {}).get("workoutTargetTypeKey"),
         "target_low": raw.get("targetValueOne"),
         "target_high": raw.get("targetValueTwo"),
