@@ -44,7 +44,7 @@ garmin workout delete ID [--dry-run]   # delete a workout and its calendar entri
 garmin workout schedule ID DATE         # put a library workout on the calendar; ID from `workouts`
 garmin workout unschedule SCHEDULE_ID   # take one entry off the calendar; schedule_id from `workout calendar`
 garmin workout calendar --from DATE --to DATE  # scheduled workouts (default today to 4 weeks after --from)
-garmin exercise list --search TEXT [--limit N]  # strength exercise names for --strength files, no login
+garmin exercise list --search TEXT [--category CATEGORY] [--limit N]  # strength exercise names for --strength files, no login
 ```
 
 `garmin <command> --help` lists every flag.
@@ -155,9 +155,16 @@ and the stderr line `garmin: Created workout "5 x 1 km" (ID …).`
 
 `garmin workout add --strength --file FILE` takes this shorter format. Look up each
 exercise with `garmin exercise list --search WORDS` and use a `name` it prints. The
-search keeps names that contain every word, in any order, ignoring case and
-punctuation; a word can be part of a longer one (`raise` finds
-`Banded Calf Raises`).
+search keeps names that contain every word, in any order, ignoring case,
+punctuation and the spaces between words; a word can be part of a longer one
+(`raise` finds `Banded Calf Raises`).
+
+- The stderr line `No exercise has every word of …` means the names are only the
+  closest ones. Use one only when it is clearly what the user meant; otherwise
+  search with other words or ask.
+- `… more exercises match. Raise --limit to see them.` means the list was cut. Raise
+  `--limit` or narrow with `--category` (each result shows its category;
+  `garmin exercise list --help` lists them all).
 
 ```json
 {

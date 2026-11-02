@@ -558,6 +558,7 @@ activities, are left out. An empty range prints `[]`.
 ```sh
 garmin exercise list --search "split squat"
 garmin exercise list --search press --limit 100
+garmin exercise list --category CALF_RAISE --search seated
 ```
 
 ```json
@@ -569,9 +570,17 @@ garmin exercise list --search press --limit 100
 
 Exercises from the Garmin Connect strength exercise catalog, sorted by name. A
 `name` goes in the `exercise` key of a strength workout file. `--search` keeps the
-names that contain every word, in any order, ignoring case and punctuation. A word
-can be part of a longer one (`raise` finds `Banded Calf Raises`).
-`--limit` caps the count (default 20). No match prints `[]`. The catalog comes with
+names that contain every word, in any order, ignoring case, punctuation and the
+spaces between words, so `pushup` finds `Push-up`. A word can be part of a longer
+one (`raise` finds `Banded Calf Raises`). When no name has every word, the command
+prints the closest names instead, closest first, with the stderr line
+`garmin: No exercise has every word of 'step down'. Showing the closest names; search again if none fits.`
+With no close name either, it prints `[]`.
+
+`--category` keeps one category, in any case; `garmin exercise list --help` lists the
+categories, and an unknown one exits with status 2. `--limit` caps the count
+(default 20); when it cuts the list, stderr says how many more match, for example
+`garmin: 15 more exercises match. Raise --limit to see them.` The catalog comes with
 the garminconnect library, so the command needs no login and makes no network call.
 
 ## Raw output
