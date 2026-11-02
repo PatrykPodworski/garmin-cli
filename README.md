@@ -479,6 +479,7 @@ not supported. Output, `--schedule` and errors are the same as for any other
 garmin workout 1234567890 --raw > intervals.json
 # change intervals.json
 garmin workout edit 1234567890 --file intervals.json
+garmin workout edit 1234567890 --strength --file upper.json
 ```
 
 Replaces a workout in the Garmin Connect workout library with the workout in the
@@ -489,6 +490,11 @@ as for `workout add`, and the command reads the workout first, so an unknown ID
 fails with the `garmin workout` message and changes nothing. stdout is the updated
 workout in the `garmin workout` format and stderr
 `garmin: Updated workout "5 x 1 km" (ID 1234567890).`
+
+`--strength` rebuilds the workout from a file in the short format of
+`workout add --strength` (see "Strength workouts" above), so changing an exercise
+needs no raw JSON. The file describes the whole workout, and the input check is the
+same as for `workout add --strength`.
 
 ### workout delete
 
