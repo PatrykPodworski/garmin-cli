@@ -105,9 +105,13 @@ def test_no_match_prints_the_closest_names_first(
 
 
 def test_closest_names_stop_at_the_limit(capsys: pytest.CaptureFixture[str]) -> None:
-    found, _ = run_with_note(["--search", "step down", "--limit", "1"], capsys)
+    found, err = run_with_note(["--search", "step down", "--limit", "1"], capsys)
 
-    assert found == [{"name": "Step-out Swing", "category": "HIP_SWING"}]
+    assert (found, err) == (
+        [{"name": "Step-out Swing", "category": "HIP_SWING"}],
+        "garmin: No exercise has every word of 'step down'. Showing the closest "
+        "names; search again if none fits.\n",
+    )
 
 
 def test_closest_names_keep_to_the_category(
@@ -133,6 +137,14 @@ def test_names_cut_by_the_limit_are_counted(
         5,
         "garmin: 15 more exercises match. Raise --limit to see them.\n",
     )
+
+
+def test_one_name_cut_by_the_limit_is_counted(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    _, err = run_with_note(["--search", "calf raise", "--limit", "19"], capsys)
+
+    assert err == "garmin: 1 more exercise matches. Raise --limit to see them.\n"
 
 
 def test_names_that_fit_the_limit_get_no_count(

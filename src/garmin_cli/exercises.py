@@ -77,8 +77,9 @@ def exercise_list(args: argparse.Namespace, _connect: Connect) -> Any:
                 file=sys.stderr,
             )
     if (more := len(found) - args.limit) > 0:
+        what = "exercise matches" if more == 1 else "exercises match"
         print(
-            f"garmin: {more} more exercises match. Raise --limit to see them.",
+            f"garmin: {more} more {what}. Raise --limit to see them.",
             file=sys.stderr,
         )
     return [
