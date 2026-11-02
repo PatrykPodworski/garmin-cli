@@ -40,6 +40,7 @@ garmin workout ID                      # one workout with its steps; ID from `wo
 garmin workout add --file FILE [--schedule DATE]  # save a workout (Garmin JSON, - for stdin), optionally on the calendar
 garmin workout add --strength --file FILE [--schedule DATE]  # save a strength workout from the short format below
 garmin workout edit ID --file FILE      # replace a workout with changed `workout ID --raw` JSON; keeps ID and calendar
+garmin workout edit ID --strength --file FILE  # replace a strength workout with a file in the short format below; keeps ID and calendar
 garmin workout delete ID [--dry-run]   # delete a workout and its calendar entries; ID from `workouts`
 garmin workout schedule ID DATE         # put a library workout on the calendar; ID from `workouts`
 garmin workout unschedule SCHEDULE_ID   # take one entry off the calendar; schedule_id from `workout calendar`
@@ -75,7 +76,10 @@ garmin exercise list --search TEXT [--category CATEGORY] [--limit N]  # strength
 - `garmin workout edit` replaces the whole workout in the user's Garmin account.
   Run it only for a workout the user asked you to change. Round-trip it: save
   `garmin workout ID --raw` to a file, change only what the user asked, then run
-  `garmin workout edit ID --file FILE` with the same ID.
+  `garmin workout edit ID --file FILE` with the same ID. For a strength workout,
+  write the whole workout in the "Strength workout" format instead and run
+  `garmin workout edit ID --strength --file FILE`: the file replaces every step, so
+  carry over the exercises the user did not ask to change.
 - `garmin workout delete` deletes without asking and cannot be undone; Garmin also
   removes the workout's calendar entries. Run it only for a workout the user asked
   you to delete. When the user names the workout instead of giving its ID, look up
@@ -153,7 +157,8 @@ and the stderr line `garmin: Created workout "5 x 1 km" (ID …).`
 
 ## Strength workout
 
-`garmin workout add --strength --file FILE` takes this shorter format. Look up each
+`garmin workout add --strength --file FILE` and
+`garmin workout edit ID --strength --file FILE` take this shorter format. Look up each
 exercise with `garmin exercise list --search WORDS` and use a `name` it prints. The
 search keeps names that contain every word, in any order, ignoring case,
 punctuation and the spaces between words; a word can be part of a longer one
