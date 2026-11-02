@@ -167,6 +167,51 @@ def test_workout_with_steps(capsys: pytest.CaptureFixture[str]) -> None:
     }
 
 
+def test_workout_shows_strength_exercises_and_weights(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    def step(category: str | None, name: str | None, **fields: Any) -> dict[str, Any]:
+        return {
+            "stepType": {"stepTypeKey": "interval"},
+            "category": category,
+            "exerciseName": name,
+            **fields,
+        }
+
+    client = FakeClient(
+        get_workout_by_id={
+            "workoutId": 9,
+            "workoutSegments": [
+                {
+                    "workoutSteps": [
+                        step("CARDIO", ""),
+                        step(
+                            "BENCH_PRESS",
+                            "BARBELL_BENCH_PRESS",
+                            weightValue=42.5,
+                            weightUnit={"unitId": 8, "unitKey": "kilogram"},
+                        ),
+                        step("NEW_CATEGORY", "NEW_EXERCISE"),
+                        step(None, None, weightValue=None, weightUnit=None),
+                    ]
+                }
+            ],
+        }
+    )
+
+    assert run_json(["workout", "9"], client, capsys)["steps"] == [
+        {"type": "interval"},
+        {
+            "type": "interval",
+            "exercise": "Barbell Bench Press",
+            "weight": 42.5,
+            "weight_unit": "kilogram",
+        },
+        {"type": "interval", "exercise": "NEW_CATEGORY/NEW_EXERCISE"},
+        {"type": "interval"},
+    ]
+
+
 def test_workout_missing_fields(capsys: pytest.CaptureFixture[str]) -> None:
     client = FakeClient(get_workout_by_id={"workoutId": 1})
 

@@ -391,7 +391,10 @@ One workout by the `id` from `garmin workouts`. It has the same keys as a
 `workouts` item, plus `steps`. A step's `end` says when it ends (`time` in
 seconds, `distance` in meters, `lap.button`) and `end_value` how much. `target`
 is the target type; `target_low` and `target_high` are its limits, for a pace
-target in m/s. A repeat step has `iterations` and its own `steps`.
+target in m/s. A repeat step has `iterations` and its own `steps`. A strength step
+has `exercise`, the name `garmin exercise list` prints, and, when it has a weight,
+`weight` and `weight_unit` (`kilogram`). An exercise missing from garmin-cli's
+catalog shows as `CATEGORY/EXERCISE_NAME`.
 
 ### workout add
 
@@ -399,6 +402,7 @@ target in m/s. A repeat step has `iterations` and its own `steps`.
 garmin workout add --file intervals.json
 garmin workout add --file intervals.json --schedule 2026-07-06
 cat intervals.json | garmin workout add --file -
+garmin workout add --strength --file upper.json
 ```
 
 Saves a structured workout to the Garmin Connect workout library. The file holds
@@ -418,6 +422,47 @@ and stderr
 When the scheduling fails, the workout exists without a calendar entry: the command
 exits 1 with `garmin: Created workout "5 x 1 km" (ID 1234567890) but did not schedule it.`
 followed by the cause. Running it again creates a second copy.
+
+#### Strength workouts
+
+`--strength` reads a shorter file that describes a strength workout: a warm-up,
+blocks of sets with exercise and rest steps, and a cool-down.
+
+```json
+{
+  "name": "Upper A",
+  "note": "Workout notes, up to 512 characters",
+  "warmup": {"time_s": 300, "note": "Rower"},
+  "blocks": [
+    {"sets": 3, "steps": [
+      {"exercise": "Barbell Bench Press", "reps": 8, "weight_kg": 42.5, "note": "Pause at the chest"},
+      {"rest": true, "time_s": 90}
+    ]},
+    {"sets": 2, "steps": [
+      {"exercise": "Plank", "time_s": 40},
+      {"rest": true}
+    ]}
+  ],
+  "cooldown": {}
+}
+```
+
+- `name` and `blocks` are required; `note`, `warmup` and `cooldown` are optional.
+- A block repeats its `steps` `sets` times.
+- An exercise step names an exercise from `garmin exercise list`. Case, spaces and
+  hyphens do not matter (`close grip barbell bench press` works).
+- A step ends after `reps` repetitions or `time_s` seconds; with neither, it ends when
+  you press the lap button. A rest step is `{"rest": true}` with an optional
+  `time_s`. The warm-up and cool-down take `time_s` too.
+- `weight_kg` is the weight in kilograms; leave it out for body-weight exercises.
+- `note` on a step is shown on the watch, up to 200 characters.
+
+garmin-cli checks the whole file before it logs in: an unknown key, an unknown
+exercise or a bad number exits with status 2 and names the step, for example
+`garmin: Step 1 of block 1 in 'upper.json' has an unknown exercise 'barbel bench press'. Did you mean 'Barbell Bench Press'? Find names with 'garmin exercise list --search TEXT'.`
+Pounds, calorie and heart-rate end conditions, and Garmin's benchmark weights are
+not supported. Output, `--schedule` and errors are the same as for any other
+`workout add`.
 
 ### workout edit
 
@@ -498,6 +543,26 @@ The workouts on the Garmin Connect calendar between `--from` and `--to`, both
 included, oldest first. `--from` defaults to today and `--to` to 4 weeks after
 `--from`; a `--to` before `--from` exits with status 2. Other calendar items, such as
 activities, are left out. An empty range prints `[]`.
+
+### exercise list
+
+```sh
+garmin exercise list --search "split squat"
+garmin exercise list --search press --limit 100
+```
+
+```json
+[
+  {"name": "Barbell Bulgarian Split Squat", "category": "LUNGE"},
+  {"name": "Dumbbell Bulgarian Split Squat", "category": "LUNGE"}
+]
+```
+
+Exercises from the Garmin Connect strength exercise catalog, sorted by name. A
+`name` goes in the `exercise` key of a strength workout file. `--search` keeps the
+names that contain every word, in any order, ignoring case and punctuation.
+`--limit` caps the count (default 20). No match prints `[]`. The catalog comes with
+the garminconnect library, so the command needs no login and makes no network call.
 
 ## Raw output
 

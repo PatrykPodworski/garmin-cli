@@ -1,9 +1,11 @@
 import argparse
 import json
 import sys
+from collections.abc import Callable
 from pathlib import Path
-from typing import Any, cast
+from typing import Any, NoReturn, cast
 
+from garmin_cli import strength
 from garmin_cli.client import Connect
 from garmin_cli.dates import parse_date
 from garmin_cli.workout_schedule import schedule
@@ -11,23 +13,31 @@ from garmin_cli.workout_schedule import schedule
 REQUIRED_KEYS = ("workoutName", "sportType", "workoutSegments")
 
 
-def read_workout(args: argparse.Namespace) -> dict[str, Any]:
-    source = "stdin" if args.file == "-" else f"'{args.file}'"
+def source_of(args: argparse.Namespace) -> str:
+    return "stdin" if args.file == "-" else f"'{args.file}'"
+
+
+def read_json(args: argparse.Namespace) -> Any:
     try:
         text = sys.stdin.read() if args.file == "-" else Path(args.file).read_text()
     except (OSError, UnicodeDecodeError) as error:
         problem = error.strerror if isinstance(error, OSError) else "not UTF-8 text"
         args.parser.fail(
-            f"Cannot read {source} ({problem}). Pass a workout JSON file, or '-' "
-            "for stdin."
+            f"Cannot read {source_of(args)} ({problem}). Pass a workout JSON file, or "
+            "'-' for stdin."
         )
     try:
-        workout = json.loads(text)
+        return json.loads(text)
     except json.JSONDecodeError as error:
         args.parser.fail(
-            f"Invalid JSON in {source} at line {error.lineno}, column {error.colno}: "
-            f"{error.msg}. Fix it and try again."
+            f"Invalid JSON in {source_of(args)} at line {error.lineno}, column "
+            f"{error.colno}: {error.msg}. Fix it and try again."
         )
+
+
+def read_workout(args: argparse.Namespace) -> dict[str, Any]:
+    workout = read_json(args)
+    source = source_of(args)
     if not isinstance(workout, dict):
         args.parser.fail(
             f"The workout in {source} is not a JSON object. Pass one workout object "
@@ -42,8 +52,17 @@ def read_workout(args: argparse.Namespace) -> dict[str, Any]:
     return cast(dict[str, Any], workout)
 
 
+def read_strength(args: argparse.Namespace) -> dict[str, Any]:
+    try:
+        return strength.build(read_json(args))
+    except strength.InvalidWorkout as error:
+        # `args.parser` is untyped; the annotation tells mypy `fail` exits.
+        fail: Callable[[str], NoReturn] = args.parser.fail
+        fail(f"{error.where} in {source_of(args)} {error.problem}")
+
+
 def add_workout(args: argparse.Namespace, connect: Connect) -> Any:
-    workout = read_workout(args)
+    workout = read_strength(args) if args.strength else read_workout(args)
     client = connect()
     created = client.upload_workout(workout)
     workout_id = created["workoutId"]
@@ -80,13 +99,20 @@ def register(subparsers: "argparse._SubParsersAction[argparse.ArgumentParser]") 
     add_parser = subparsers.add_parser(
         "workout add",
         description="Saves a workout in Garmin's own JSON format to the Garmin "
-        "Connect workout library and prints its ID. --schedule also puts it on the "
-        "calendar, and the watch gets it on its next sync.",
+        "Connect workout library and prints its ID. --strength reads a short strength "
+        "workout file instead. --schedule also puts the workout on the calendar, and "
+        "the watch gets it on its next sync.",
     )
     add_parser.add_argument(
         "--file",
         required=True,
         help="workout JSON file, or - to read stdin",
+    )
+    add_parser.add_argument(
+        "--strength",
+        action="store_true",
+        help="read --file as a strength workout: name, note, warmup, blocks of "
+        "exercise and rest steps, cooldown",
     )
     add_parser.add_argument(
         "--schedule",
