@@ -454,7 +454,12 @@ blocks of sets with exercise and rest steps, and a cool-down.
 - A step ends after `reps` repetitions or `time_s` seconds; with neither, it ends when
   you press the lap button. A rest step is `{"rest": true}` with an optional
   `time_s`. The warm-up and cool-down take `time_s` too.
-- `weight_kg` is the weight in kilograms; leave it out for body-weight exercises.
+- `weight_kg` is the weight in kilograms; leave it out for body-weight exercises. It
+  is the one number the watch shows for the step. Whether it is per hand or the total
+  is your choice; for dumbbells, give the weight per hand and say so in the step
+  `note`.
+- Garmin has no per-side reps field. For "8 per leg", write `"reps": 8` and say
+  "per leg" in the step `note`.
 - `note` on a step is shown on the watch, up to 200 characters.
 
 garmin-cli checks the whole file before it logs in: an unknown key, an unknown
@@ -560,7 +565,8 @@ garmin exercise list --search press --limit 100
 
 Exercises from the Garmin Connect strength exercise catalog, sorted by name. A
 `name` goes in the `exercise` key of a strength workout file. `--search` keeps the
-names that contain every word, in any order, ignoring case and punctuation.
+names that contain every word, in any order, ignoring case and punctuation. A word
+can be part of a longer one (`raise` finds `Banded Calf Raises`).
 `--limit` caps the count (default 20). No match prints `[]`. The catalog comes with
 the garminconnect library, so the command needs no login and makes no network call.
 

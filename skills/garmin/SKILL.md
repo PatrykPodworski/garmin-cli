@@ -154,7 +154,10 @@ and the stderr line `garmin: Created workout "5 x 1 km" (ID …).`
 ## Strength workout
 
 `garmin workout add --strength --file FILE` takes this shorter format. Look up each
-exercise with `garmin exercise list --search WORDS` and use a `name` it prints.
+exercise with `garmin exercise list --search WORDS` and use a `name` it prints. The
+search keeps names that contain every word, in any order, ignoring case and
+punctuation; a word can be part of a longer one (`raise` finds
+`Banded Calf Raises`).
 
 ```json
 {
@@ -180,6 +183,11 @@ exercise with `garmin exercise list --search WORDS` and use a `name` it prints.
   Rest, warm-up and cool-down take only `time_s` (and `note`).
 - `weight_kg` is kilograms. Give it only when the user named a weight; leave it out
   for body-weight exercises. Pounds are not supported: convert and tell the user.
+- `weight_kg` is the one number the watch shows. Per hand or total is the user's
+  choice; for dumbbells, write the weight per hand and add "per hand" to the step
+  `note`.
+- There is no per-side reps field; do not look for one. For "8 per leg", write
+  `"reps": 8` and add "per leg" to the step `note`.
 - An unknown exercise exits 2 with `Did you mean '…'?`. Use that name only when it
   is clearly what the user meant; otherwise search again or ask.
 
