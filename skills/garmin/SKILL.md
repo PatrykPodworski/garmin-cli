@@ -188,6 +188,8 @@ punctuation; a word can be part of a longer one (`raise` finds
   `note`.
 - There is no per-side reps field; do not look for one. For "8 per leg", write
   `"reps": 8` and add "per leg" to the step `note`.
+- `estimated_duration_min` is an estimate: `time_s` as given, 3 seconds per rep,
+  times `sets`; lap-button steps count 0, so a workout without times or reps shows 0.
 - An unknown exercise exits 2 with `Did you mean '…'?`. Use that name only when it
   is clearly what the user meant; otherwise search again or ask.
 

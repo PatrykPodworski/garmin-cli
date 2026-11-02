@@ -174,7 +174,9 @@ UPLOADED = {
             ],
         }
     ],
-    "estimatedDurationInSecs": 0,
+    # Warm-up 300 + 3 x (8 reps x 3 + rest 90) + 2 x (plank 40 + lap rest 0) + lap
+    # cool-down 0.
+    "estimatedDurationInSecs": 722,
     "estimatedDistanceInMeters": 0,
     "estimateType": None,
     "isWheelchair": False,
@@ -217,10 +219,49 @@ def test_strength_file_becomes_a_garmin_strength_workout(
 
     assert (code, json.loads(out), err) == (
         0,
-        {"id": 777, "name": "Upper A", "estimated_duration_min": 0, "scheduled": None},
+        {
+            "id": 777,
+            "name": "Upper A",
+            "estimated_duration_min": 12.03,
+            "scheduled": None,
+        },
         'garmin: Created workout "Upper A" (ID 777).\n',
     )
     assert uploaded(client) == UPLOADED
+
+
+def test_strength_add_prints_the_duration_garmin_stored(
+    capsys: pytest.CaptureFixture[str], tmp_path: Path
+) -> None:
+    client = FakeClient(upload_workout={**CREATED, "estimatedDurationInSecs": 900})
+
+    _, out, _ = run(
+        ["workout", "add", "--strength", "--file", write(tmp_path, PLAN)],
+        client,
+        capsys,
+    )
+
+    assert json.loads(out)["estimated_duration_min"] == 15.0
+
+
+def test_strength_estimate_without_reps_or_time_is_0(
+    capsys: pytest.CaptureFixture[str], tmp_path: Path
+) -> None:
+    client = FakeClient(upload_workout=CREATED)
+    plan = {
+        "name": "Pull",
+        "warmup": {},
+        "blocks": [{"sets": 4, "steps": [{"exercise": "Pull-up"}, {"rest": True}]}],
+    }
+
+    _, out, _ = run(
+        ["workout", "add", "--strength", "--file", write(tmp_path, plan)],
+        client,
+        capsys,
+    )
+
+    assert uploaded(client)["estimatedDurationInSecs"] == 0
+    assert json.loads(out)["estimated_duration_min"] == 0
 
 
 def test_minimal_strength_file_ends_steps_on_the_lap_button(

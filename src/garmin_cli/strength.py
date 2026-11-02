@@ -24,6 +24,8 @@ WORKOUT_NOTE = 512
 STEP_NOTE = 200
 # The editor sends this value with a lap-button end, which has no value of its own.
 LAP_VALUE = 10
+# The duration estimate counts this many seconds for each rep.
+SECONDS_PER_REP = 3
 
 
 class InvalidWorkout(Exception):
@@ -218,6 +220,20 @@ def number(
         step["stepId"] = next(ids)
 
 
+def duration(steps: list[dict[str, Any]]) -> int:
+    """Seconds the steps take: a time end as given, 3 seconds per rep, a repeat
+    group times its sets, and nothing for a lap-button end."""
+    seconds = 0
+    for step in steps:
+        if "workoutSteps" in step:
+            seconds += step["numberOfIterations"] * duration(step["workoutSteps"])
+        elif step["endCondition"]["conditionTypeKey"] == "time":
+            seconds += step["endConditionValue"]
+        elif step["endCondition"]["conditionTypeKey"] == "reps":
+            seconds += step["endConditionValue"] * SECONDS_PER_REP
+    return seconds
+
+
 def build(data: Any) -> dict[str, Any]:
     where = "The workout"
     if not isinstance(data, dict):
@@ -253,7 +269,7 @@ def build(data: Any) -> dict[str, Any]:
         "workoutSegments": [
             {"segmentOrder": 1, "sportType": STRENGTH, "workoutSteps": steps}
         ],
-        "estimatedDurationInSecs": 0,
+        "estimatedDurationInSecs": duration(steps),
         "estimatedDistanceInMeters": 0,
         "estimateType": None,
         "isWheelchair": False,
