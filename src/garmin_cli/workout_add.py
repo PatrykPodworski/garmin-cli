@@ -84,7 +84,9 @@ def add_workout(args: argparse.Namespace, connect: Connect) -> Any:
         )
     else:
         print(f"garmin: Created {what}.", file=sys.stderr)
-    seconds = created.get("estimatedDurationInSecs")
+    stored = created.get("estimatedDurationInSecs")
+    # Garmin can answer 0 for a strength workout (#125); show the estimate sent.
+    seconds = stored or workout.get("estimatedDurationInSecs", stored)
     return {
         "id": workout_id,
         "name": created.get("workoutName"),

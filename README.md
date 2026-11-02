@@ -461,6 +461,10 @@ blocks of sets with exercise and rest steps, and a cool-down.
 - Garmin has no per-side reps field. For "8 per leg", write `"reps": 8` and say
   "per leg" in the step `note`.
 - `note` on a step is shown on the watch, up to 200 characters.
+- garmin-cli sends an estimated duration with the workout: `time_s` as given, 3
+  seconds per rep, each block times its `sets`, and nothing for a step that ends on
+  the lap button. The example above is 722 seconds. When Garmin answers 0, the
+  `estimated_duration_min` that `workout add` prints is this estimate.
 
 garmin-cli checks the whole file before it logs in: an unknown key, an unknown
 exercise or a bad number exits with status 2 and names the step, for example
