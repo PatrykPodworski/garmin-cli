@@ -9,6 +9,10 @@ class HttpClient(Protocol):
         self, _domain: str, _path: str, /, *, json: dict[str, Any], api: bool
     ) -> Any: ...
 
+    def post(
+        self, _domain: str, _path: str, /, *, json: list[dict[str, Any]], api: bool
+    ) -> Any: ...
+
 
 class GarminClient(Protocol):
     """The `garminconnect.Garmin` methods the subcommands call."""
@@ -82,6 +86,8 @@ class GarminClient(Protocol):
     def import_course(self, _file_path: str, /) -> Any: ...
 
     def create_course(self, _course: dict[str, Any], /) -> dict[str, Any]: ...
+
+    def get_devices(self) -> list[dict[str, Any]]: ...
 
 
 Connect = Callable[[], GarminClient]

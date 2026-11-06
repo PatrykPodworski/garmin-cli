@@ -1,8 +1,8 @@
 # garmin-cli
 
 `garmin` reads your Garmin Connect data and prints it as JSON. It can also log a
-weigh-in, adjust a night's sleep times, manage workouts and save GPX files as
-courses. Scripts, agents and people at a terminal can use it. It wraps
+weigh-in, adjust a night's sleep times, manage workouts, save GPX files as
+courses and send a course to a watch. Scripts, agents and people at a terminal can use it. It wraps
 [python-garminconnect](https://github.com/cyberjunky/python-garminconnect).
 
 ## Install
@@ -609,8 +609,8 @@ garmin-cli checks before it calls Garmin that the file is readable XML with a
 2 otherwise. TCX and FIT files are not supported. stdout is the saved course, with
 the keys of `garmin course view`, and stderr
 `garmin: Imported 'hills.gpx' and saved it as course "Hill repeats" (ID 1234567).`
-Running it again saves a second copy. Sending the course to the watch is not
-supported yet.
+Running it again saves a second copy. `garmin course send` sends the course to
+a watch.
 
 ### course list
 
@@ -647,11 +647,68 @@ One course by the `id` from `garmin course list` or `garmin course create`, with
 the same keys as a `course list` item. `distance_m` and the elevation keys are
 meters; Garmin computes them when it saves the course.
 
+### course send
+
+```sh
+garmin device list                         # find the watch's id
+garmin course send 1234567 --device 3333333333
+```
+
+```json
+{
+  "course_id": 1234567,
+  "course": "Hill repeats",
+  "device_id": 3333333333,
+  "device": "My watch",
+  "message_id": 888888
+}
+```
+
+Queues a saved course for one device, like *Send to Device* in Garmin Connect.
+The watch downloads it on its next sync with Garmin Connect. A success means
+Garmin accepted the message, not that the course is on the watch yet.
+
+The course ID comes from `garmin course list`, and `--device` takes an `id` from
+`garmin device list`; there is no default device. The command fetches the course
+and the account's devices first and exits 1, sending nothing, when either ID is
+unknown. stderr is
+`garmin: Queued course "Hill repeats" (ID 1234567) for device "My watch" (ID 3333333333). The watch gets it on its next sync.`
+`message_id` is left out when Garmin's answer has none. `--raw` prints Garmin's
+answer to the send. Running it again queues the course again.
+
+garminconnect has no call for this, so garmin-cli posts the device message
+itself, through the library's HTTP client and the same endpoint the library's
+`push_workout_to_device` uses for workouts. The course fields follow
+[bpauli/gccli](https://github.com/bpauli/gccli) (`internal/garminapi/courses.go`,
+`SendCourseToDevice`). If Garmin changes the message format, the command fails
+with `Garmin Connect rejected the request`.
+
+### device list
+
+```sh
+garmin device list
+```
+
+```json
+[
+  {
+    "id": 3333333333,
+    "name": "My watch",
+    "model": "fēnix 6 Pro"
+  }
+]
+```
+
+The devices registered to the Garmin Connect account. `id` is what
+`garmin course send --device` takes, `name` is the device's name in Garmin Connect,
+and `model` its product name. A key Garmin has no value for is left out. No
+devices prints `[]`.
+
 ## Raw output
 
 `stats`, `recovery view`, `sleep`, `weight`, `bp`, `activities`, `activity`,
-`workouts`, `workout`, `workout calendar`, `course list` and `course view`
-accept `--raw`. It
+`workouts`, `workout`, `workout calendar`, `course list`, `course view`,
+`course send` and `device list` accept `--raw`. It
 prints the full Garmin response instead of the summary. `activity --raw` combines
 three responses under `summary`, `splits` and `hr_zones`, and `recovery view --raw`
 under `training_readiness`, `training_status` and `hrv`. `workout calendar --raw`
@@ -683,6 +740,8 @@ Messages for status 1:
 | `activity <id>` not found | `garmin: No activity with ID <id>. Run 'garmin activities' to list recent IDs.` |
 | `workout <id>`, `workout edit <id>` or `workout schedule <id>` not found | `garmin: No workout with ID <id>. Run 'garmin workouts' to list IDs.` |
 | `course view <id>` not found | `garmin: No course with ID <id>. Run 'garmin course list' to list IDs.` |
+| `course send <id>` course not found | `garmin: No course with ID <id>. Run 'garmin course list' to list IDs.` |
+| `course send --device <id>` device not found | `garmin: No device with ID <id>. Run 'garmin device list' to list IDs.` |
 | `course create` import has no track | `garmin: Garmin found no track in '<file>', so no course was saved. Check that the file imports in Garmin Connect's course import.` |
 | `workout unschedule <id>` not found | `garmin: No calendar entry with schedule ID <id>. Run 'garmin workout calendar' to list schedule IDs.` |
 | Rate limit | `garmin: Garmin is rate-limiting requests from this machine. Wait a few minutes and try again.` |

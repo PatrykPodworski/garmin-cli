@@ -67,13 +67,14 @@ def course_view(args: argparse.Namespace, connect: Connect) -> Any:
 def register(
     subparsers: "argparse._SubParsersAction[argparse.ArgumentParser]",
 ) -> "argparse._SubParsersAction[argparse.ArgumentParser]":
-    """Returns the `course` commands, for `course_create.register` to add `create`."""
+    """Returns the `course` commands, for the write modules to add `create` and
+    `send`."""
     course_parser = subparsers.add_parser(
         "course", help="courses: GPX routes the watch can follow"
     )
     # `CliParser.explain` names a missing command by this metavar.
     commands = course_parser.add_subparsers(
-        dest="subcommand", required=True, metavar="{list,view,create}"
+        dest="subcommand", required=True, metavar="{list,view,create,send}"
     )
     list_parser = commands.add_parser(
         "list",
