@@ -595,8 +595,12 @@ cat hills.gpx | garmin course create --file - --name "Hill repeats"
 Saves a GPX file as a course in Garmin Connect, in two Garmin steps. The import
 step sends the file to Garmin, which parses it into a course object; that object
 is temporary, has no ID, and nothing is saved yet. The create step saves it as a
-course with its own ID, the one `garmin course view` takes. When the import
-finds no track, the command exits 1 and saves nothing.
+course with its own ID, the one `garmin course view` takes. Garmin rejects the
+import object as a save body, so the create step sends only the course fields
+Garmin saves, leaves out the empty ones, and fills in the start point (the first
+track point), the coordinate system (WGS84) and the source type (GPX) when the
+import left them empty. Garmin computes distance and elevation on save. When the
+import finds no track, the command exits 1 and saves nothing.
 
 `--name` sets the course name (default: the name Garmin reads from the GPX, else
 the file name without `.gpx`, or `Course` for stdin). `--type` takes a Garmin
