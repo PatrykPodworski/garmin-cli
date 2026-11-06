@@ -22,6 +22,8 @@ from garmin_cli import (
     activity_add,
     activity_delete,
     auth,
+    course_create,
+    courses,
     exercises,
     health,
     recovery,
@@ -101,9 +103,11 @@ class CliParser(argparse.ArgumentParser):
             if self.subparsers and name == self.subparsers.metavar:
                 return f"No command given. {self.run_command()}"
             if name == "id":
-                # `garmin activity …` or `garmin workout …`
+                # `garmin activity …`, `garmin workout …` or `garmin course view`
                 noun = self.prog.split()[1]
-                listing = {"activity": "activities"}.get(noun, f"{noun}s")
+                listing = {"activity": "activities", "course": "course list"}.get(
+                    noun, f"{noun}s"
+                )
                 return (
                     f"Missing {noun} ID. Run 'garmin {listing}' to list IDs, "
                     f"then '{self.prog} <id>'."
@@ -213,6 +217,7 @@ def build_parser() -> CliParser:
     workout_schedule.register(subparsers)
     workout_unschedule.register(subparsers)
     exercises.register(subparsers)
+    course_create.register(courses.register(subparsers))
     # The default names every choice, the two-word commands like `sleep set` too.
     subparsers.metavar = f"{{{','.join(parser.listed)}}}"
     return parser

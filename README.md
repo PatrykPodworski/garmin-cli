@@ -1,7 +1,8 @@
 # garmin-cli
 
 `garmin` reads your Garmin Connect data and prints it as JSON. It can also log a
-weigh-in and adjust a night's sleep times. Scripts, agents and people at a terminal can use it. It wraps
+weigh-in, adjust a night's sleep times, manage workouts and save GPX files as
+courses. Scripts, agents and people at a terminal can use it. It wraps
 [python-garminconnect](https://github.com/cyberjunky/python-garminconnect).
 
 ## Install
@@ -583,10 +584,74 @@ categories, and an unknown one exits with status 2. `--limit` caps the count
 `garmin: 15 more exercises match. Raise --limit to see them.` The catalog comes with
 the garminconnect library, so the command needs no login and makes no network call.
 
+### course create
+
+```sh
+garmin course create --file hills.gpx --name "Hill repeats" --type trail_running
+garmin course create --file hills.gpx                       # running, private
+cat hills.gpx | garmin course create --file - --name "Hill repeats"
+```
+
+Saves a GPX file as a course in Garmin Connect, in two Garmin steps. The import
+step sends the file to Garmin, which parses it into a course object; that object
+is temporary, has no ID, and nothing is saved yet. The create step saves it as a
+course with its own ID, the one `garmin course view` takes. When the import
+finds no track, the command exits 1 and saves nothing.
+
+`--name` sets the course name (default: the name Garmin reads from the GPX, else
+the file name without `.gpx`, or `Course` for stdin). `--type` takes a Garmin
+activity type key, as `garmin activity add` does (default `running`); an unknown
+key exits 2 before the import. `--privacy` is `private` (default) or `public`.
+`--file -` reads the GPX from stdin.
+
+garmin-cli checks before it calls Garmin that the file is readable XML with a
+`<gpx>` root and at least 2 track or route points (`trkpt` or `rtept`), and exits
+2 otherwise. TCX and FIT files are not supported. stdout is the saved course, with
+the keys of `garmin course view`, and stderr
+`garmin: Imported 'hills.gpx' and saved it as course "Hill repeats" (ID 1234567).`
+Running it again saves a second copy. Sending the course to the watch is not
+supported yet.
+
+### course list
+
+```sh
+garmin course list
+garmin course list --limit 100
+```
+
+```json
+[
+  {
+    "id": 1234567,
+    "name": "Hill repeats",
+    "type": "trail_running",
+    "distance_m": 5321.5,
+    "elevation_gain_m": 210.25,
+    "elevation_loss_m": 209.75,
+    "privacy": "private"
+  }
+]
+```
+
+The courses saved in Garmin Connect, in the order Garmin returns them. `--limit`
+caps the count (default 20). No courses prints `[]`. A key Garmin has no value for
+is left out.
+
+### course view
+
+```sh
+garmin course view 1234567
+```
+
+One course by the `id` from `garmin course list` or `garmin course create`, with
+the same keys as a `course list` item. `distance_m` and the elevation keys are
+meters; Garmin computes them when it saves the course.
+
 ## Raw output
 
 `stats`, `recovery view`, `sleep`, `weight`, `bp`, `activities`, `activity`,
-`workouts`, `workout` and `workout calendar` accept `--raw`. It
+`workouts`, `workout`, `workout calendar`, `course list` and `course view`
+accept `--raw`. It
 prints the full Garmin response instead of the summary. `activity --raw` combines
 three responses under `summary`, `splits` and `hr_zones`, and `recovery view --raw`
 under `training_readiness`, `training_status` and `hrv`. `workout calendar --raw`
@@ -617,6 +682,8 @@ Messages for status 1:
 | `sleep set` night has no time zone | `garmin: Garmin Connect sent no time zone for the night ending <date>, so garmin-cli cannot convert the times. Adjust the sleep times in the Garmin Connect app.` |
 | `activity <id>` not found | `garmin: No activity with ID <id>. Run 'garmin activities' to list recent IDs.` |
 | `workout <id>`, `workout edit <id>` or `workout schedule <id>` not found | `garmin: No workout with ID <id>. Run 'garmin workouts' to list IDs.` |
+| `course view <id>` not found | `garmin: No course with ID <id>. Run 'garmin course list' to list IDs.` |
+| `course create` import has no track | `garmin: Garmin found no track in '<file>', so no course was saved. Check that the file imports in Garmin Connect's course import.` |
 | `workout unschedule <id>` not found | `garmin: No calendar entry with schedule ID <id>. Run 'garmin workout calendar' to list schedule IDs.` |
 | Rate limit | `garmin: Garmin is rate-limiting requests from this machine. Wait a few minutes and try again.` |
 | Tokens expired | `garmin: Not logged in: no valid saved login in ~/.garminconnect. Run 'garmin login'.` |

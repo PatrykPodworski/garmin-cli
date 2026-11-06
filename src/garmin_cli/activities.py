@@ -1,6 +1,8 @@
 import argparse
+import difflib
+from collections.abc import Callable, Collection
 from datetime import date
-from typing import Any
+from typing import Any, NoReturn
 
 from garminconnect import GarminConnectNotFoundError
 
@@ -36,6 +38,20 @@ def positive_int(value: str) -> int:
             f"Invalid --limit '{value}'. Use a whole number of 1 or more."
         )
     return number
+
+
+def require_type(
+    key: str, keys: Collection[str], fail: Callable[[str], NoReturn]
+) -> None:
+    """Fails with exit 2 unless `key` is one of Garmin's activity type `keys`."""
+    if key in keys:
+        return
+    problem = f"Unknown activity type '{key}'."
+    if match := difflib.get_close_matches(key, list(keys)):
+        fail(f"{problem} Did you mean '{match[0]}'?")
+    fail(
+        f"{problem} Use a Garmin type key, like running, cycling or strength_training."
+    )
 
 
 def summarize(raw: dict[str, Any], type_key: str | None) -> dict[str, Any]:
