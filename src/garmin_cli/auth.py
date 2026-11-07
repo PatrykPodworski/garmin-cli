@@ -1,6 +1,7 @@
 import argparse
 import os
 import subprocess
+import tempfile
 from typing import cast
 
 from garminconnect import (
@@ -24,6 +25,12 @@ def tokenstore_name() -> str:
     if "GARMINTOKENS" in os.environ:
         return "the token store in GARMINTOKENS"
     return tokenstore()
+
+
+def holds_token_json(value: str) -> bool:
+    """Whether a GARMINTOKENS value is the token JSON itself, the way
+    garminconnect tells it from a path."""
+    return value.strip().startswith(("{", "["))
 
 
 def not_logged_in() -> GarminCliError:
@@ -87,10 +94,22 @@ def login(_args: argparse.Namespace, _connect: Connect) -> dict[str, str]:
             f"No Keychain password for account {email} (service 'garmin').",
             f"Add it with 'security add-generic-password -s garmin -a {email} -w'.",
         )
+    if holds_token_json(path):
+        raise GarminCliError(
+            "GARMINTOKENS holds the token JSON itself, so 'garmin login' has no "
+            "folder to save the new login to.",
+            "Set GARMINTOKENS to a token folder path, or unset it, and run "
+            "'garmin login' again.",
+        )
     password = keychain.stdout.rstrip("\n")
     client = Garmin(email, password, prompt_mfa=ask_mfa_code)
     try:
-        client.login(path)
+        # Garmin.login resumes any session saved in its token store and skips
+        # the credential login without checking whose session it is. An empty
+        # store makes it log in as GARMIN_EMAIL; a failed login leaves the
+        # saved session alone.
+        with tempfile.TemporaryDirectory() as empty_store:
+            client.login(empty_store)
     except GarminConnectAuthenticationError:
         raise GarminCliError(
             f"Garmin rejected the login for {email}.",
@@ -109,6 +128,7 @@ def login(_args: argparse.Namespace, _connect: Connect) -> dict[str, str]:
         if isinstance(error.__cause__, GarminCliError):
             raise error.__cause__ from None
         raise
+    client.client.dump(path)
     return {"tokenstore": tokenstore_name()}
 
 
