@@ -23,10 +23,11 @@ export GARMIN_EMAIL=you@example.com
 garmin login
 ```
 
-`garmin login` asks for an MFA code if your account has one. It saves tokens to
-`~/.garminconnect`, or to the path in `GARMINTOKENS` if you set it. The other
-commands read those tokens. When the tokens expire, a command fails and tells you to
-run `garmin login` again.
+`garmin login` asks for an MFA code if your account has one. It always logs in as
+`GARMIN_EMAIL`, even when a saved login exists, and then saves the tokens to
+`~/.garminconnect`, or to the path in `GARMINTOKENS` if you set it. A failed login
+keeps the saved tokens. The other commands read those tokens. When the tokens expire,
+a command fails and tells you to run `garmin login` again.
 
 | Message starts with | Fix |
 |---|---|
@@ -37,6 +38,7 @@ run `garmin login` again.
 | `Garmin rejected the login` | Fix the Keychain password, then run `garmin login`. |
 | `No MFA code entered` | Run `garmin login` in a terminal and type the code. |
 | `Garmin is rate-limiting logins` | Wait about an hour, then run `garmin login`. |
+| `GARMINTOKENS holds the token JSON itself` | Set `GARMINTOKENS` to a token folder path, or unset it, then run `garmin login`. |
 
 ## Dates
 
