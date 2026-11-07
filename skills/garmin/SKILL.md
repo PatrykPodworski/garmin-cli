@@ -1,15 +1,15 @@
 ---
 name: garmin
-description: Use when the user asks about their Garmin data — workouts (runs, rides), sleep or sleep score, weight, body fat, blood pressure, calories burned, resting heart rate, body battery, stress, training readiness, training status, training load, recovery time or HRV status — or asks to adjust a night's sleep times, log a weigh-in, add a manual activity, delete an activity, find a workout in their workout library, create or change a structured running workout, create a strength workout with exercises, sets, reps and weights, look up a strength exercise name, delete a workout, or put a workout on their calendar, take it off or see what is scheduled.
+description: Use when the user asks about their Garmin data — workouts (runs, rides), sleep or sleep score, weight, body fat, blood pressure, calories burned, resting heart rate, body battery, stress, training readiness, training status, training load, recovery time or HRV status — or asks to adjust a night's sleep times, log a weigh-in, add a manual activity, delete an activity, find a workout in their workout library, create or change a structured running workout, create a strength workout with exercises, sets, reps and weights, look up a strength exercise name, delete a workout, put a workout on their calendar, take it off or see what is scheduled, or save a GPX file as a course and list or look up their courses.
 ---
 
 # garmin
 
 `garmin` reads the user's Garmin Connect data and prints JSON. Run it with Bash.
-Nine commands change data: `garmin weight add`, `garmin sleep set`,
+Ten commands change data: `garmin weight add`, `garmin sleep set`,
 `garmin activity add`, `garmin activity delete`, `garmin workout add`,
-`garmin workout edit`, `garmin workout delete`, `garmin workout schedule` and
-`garmin workout unschedule`.
+`garmin workout edit`, `garmin workout delete`, `garmin workout schedule`,
+`garmin workout unschedule` and `garmin course create`.
 
 ## Login
 
@@ -45,6 +45,9 @@ garmin workout schedule ID DATE         # put a library workout on the calendar;
 garmin workout unschedule SCHEDULE_ID   # take one entry off the calendar; schedule_id from `workout calendar`
 garmin workout calendar --from DATE --to DATE  # scheduled workouts (default today to 4 weeks after --from)
 garmin exercise list --search TEXT [--category CATEGORY] [--limit N]  # strength exercise names for --strength files, no login
+garmin course create --file GPX [--name NAME] [--type KEY] [--privacy private|public]  # import a GPX and save it as a course (default running, private)
+garmin course list --limit 50           # saved courses, default limit 20
+garmin course view ID                   # one course: distance, elevation, type, privacy; ID from `course list`
 ```
 
 `garmin <command> --help` lists every flag.
@@ -85,6 +88,11 @@ garmin exercise list --search TEXT [--category CATEGORY] [--limit N]  # strength
   Garmin calendar. Run them only for a workout and date the user named. Before
   scheduling, check `garmin workout calendar` for that date, so the workout is not
   scheduled twice. Unschedule only an entry the user asked to remove.
+- `garmin course create` writes to the user's Garmin account. Run it only for a GPX
+  file the user named, with the name, type and privacy they gave; leave privacy at
+  `private` unless they asked for public. Each run saves a new course, so after a
+  failed run check `garmin course list` before retrying. It does not send the course
+  to the watch; tell the user to do that from Garmin Connect.
 - Summary floats are rounded to two decimals. Quote them as printed.
 - Start with the summary. Add `--raw` only when the field you need is missing from it:
   raw output is the full Garmin response, many times larger.

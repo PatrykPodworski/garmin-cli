@@ -1,10 +1,9 @@
 import argparse
-import difflib
 import math
 from typing import Any
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from garmin_cli.activities import activity
+from garmin_cli.activities import activity, require_type
 from garmin_cli.client import Connect
 from garmin_cli.dates import local_time_zone, parse_datetime
 
@@ -61,14 +60,7 @@ def add_activity(args: argparse.Namespace, connect: Connect) -> Any:
         )
     client = connect()
     types = [activity_type["typeKey"] for activity_type in client.get_activity_types()]
-    if args.type not in types:
-        problem = f"Unknown activity type '{args.type}'."
-        if match := difflib.get_close_matches(args.type, types):
-            args.parser.fail(f"{problem} Did you mean '{match[0]}'?")
-        args.parser.fail(
-            f"{problem} Use a Garmin type key, like running, cycling or "
-            "strength_training."
-        )
+    require_type(args.type, types, args.parser.fail)
     # The payload of garminconnect's `create_manual_activity`, which cannot send
     # calories: without them Garmin estimates far fewer than its web form does.
     summary: dict[str, Any] = {
