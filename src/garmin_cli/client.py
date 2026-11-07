@@ -89,5 +89,7 @@ class GarminClient(Protocol):
 
     def get_devices(self) -> list[dict[str, Any]]: ...
 
+    def get_pace_bands(self) -> list[dict[str, Any]]: ...
+
 
 Connect = Callable[[], GarminClient]
