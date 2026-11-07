@@ -23,6 +23,14 @@ WEBSITE_SETTINGS = {
 }
 
 
+def split_type(value: str) -> str:
+    if value not in SPLIT_TYPES:
+        raise argparse.ArgumentTypeError(
+            f"Invalid --split '{value}'. Use km or elevation."
+        )
+    return SPLIT_TYPES[value]
+
+
 def goal_time(value: str) -> int:
     match = re.fullmatch(r"(\d+):([0-5]\d):([0-5]\d)", value)
     seconds = int(match[1]) * 3600 + int(match[2]) * 60 + int(match[3]) if match else 0
@@ -80,7 +88,7 @@ def create_plan(args: argparse.Namespace, connect: Connect) -> Any:
         "name": args.name or course.get("courseName"),
         "goalTime": seconds,
         "goalSpeed": distance / seconds,
-        "splitType": SPLIT_TYPES[args.split],
+        "splitType": args.split,
         "totalDistance": distance,
         "uphillEffort": args.uphill_effort,
         "pacingStrategy": args.pacing_strategy,
@@ -129,7 +137,8 @@ def register(commands: "argparse._SubParsersAction[argparse.ArgumentParser]") ->
     goal.add_argument("--goal-pace", type=goal_pace, help="average pace per km, M:SS")
     create_parser.add_argument(
         "--split",
-        choices=SPLIT_TYPES,
+        type=split_type,
+        metavar="{km,elevation}",
         default="km",
         help="split at every km or where the grade changes (default: km)",
     )

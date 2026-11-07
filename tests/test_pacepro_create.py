@@ -329,8 +329,7 @@ HELP = "Run 'garmin pacepro create --help'."
         ),
         (
             [*CREATE, "--split", "mile"],
-            "Argument --split: invalid choice: 'mile' (choose from km, elevation). "
-            f"{HELP}",
+            "Invalid --split 'mile'. Use km or elevation.",
         ),
     ],
 )
