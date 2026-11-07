@@ -23,10 +23,51 @@ GPX = (
     b"</trkseg></trk></gpx>"
 )
 POINTS = [
-    {"latitude": 10.0, "longitude": 20.0, "elevation": None},
-    {"latitude": 10.001, "longitude": 20.001, "elevation": None},
+    {
+        "latitude": 10.0,
+        "longitude": 20.0,
+        "elevation": None,
+        "distance": None,
+        "timestamp": None,
+    },
+    {
+        "latitude": 10.001,
+        "longitude": 20.001,
+        "elevation": None,
+        "distance": None,
+        "timestamp": None,
+    },
 ]
-IMPORTED = {"courseId": None, "courseName": "Test Track", "geoPoints": POINTS}
+# Made-up values in the shape of a live import result (#134): nothing saved yet, so
+# the fields Garmin fills in on save are null, and so are the three garmin-cli fills.
+IMPORTED = {
+    "courseId": None,
+    "courseName": "Test Track",
+    "description": None,
+    "rulePK": None,
+    "activityTypePk": None,
+    "distanceMeter": None,
+    "elevationGainMeter": None,
+    "elevationLossMeter": None,
+    "boundingBox": None,
+    "startPoint": None,
+    "coordinateSystem": None,
+    "sourceTypeId": None,
+    "elapsedSeconds": None,
+    "coursePoints": [],
+    "geoPoints": POINTS,
+}
+# The body garmin-cli saves IMPORTED as, with --name "Hill Loop" --type trail_running.
+SAVE_BODY = {
+    "courseName": "Hill Loop",
+    "activityTypePk": 6,
+    "rulePK": 2,
+    "coursePoints": [],
+    "geoPoints": POINTS,
+    "startPoint": POINTS[0],
+    "coordinateSystem": "WGS84",
+    "sourceTypeId": 3,
+}
 SAVED = {
     "courseId": 111,
     "courseName": "Hill Loop",
@@ -112,21 +153,101 @@ def test_course_create_imports_then_saves(
     assert client.calls == [
         ("get_activity_types", (), {}),
         ("import_course", (str(folder / "hills.gpx"),), {}),
-        (
-            "create_course",
-            (
-                {
-                    "courseId": None,
-                    "courseName": "Hill Loop",
-                    "geoPoints": POINTS,
-                    "activityTypePk": 6,
-                    "rulePK": 2,
-                },
-            ),
-            {},
-        ),
+        ("create_course", (SAVE_BODY,), {}),
     ]
     assert (folder / "hills.gpx").read_bytes() == GPX
+
+
+def garmin_rejects(body: dict[str, Any]) -> list[str]:
+    """What made Garmin answer HTTP 400 to the save in the live test of #134: a
+    top-level null, or no start point, coordinate system or source type. Observed,
+    not a documented Garmin rule."""
+    return [f"{key} is null" for key, value in body.items() if value is None] + [
+        f"no {key}"
+        for key in ("startPoint", "coordinateSystem", "sourceTypeId")
+        if key not in body
+    ]
+
+
+def test_course_create_saves_a_body_garmin_accepts(
+    capsys: pytest.CaptureFixture[str], tmp_path: Path
+) -> None:
+    client = create_client()
+
+    code, _, _ = run(["course", "create", "--file", write(tmp_path)], client, capsys)
+
+    assert code == 0
+    assert garmin_rejects(client.calls[-1][1][0]) == []
+
+
+def test_course_create_keeps_every_imported_save_field(
+    capsys: pytest.CaptureFixture[str], tmp_path: Path
+) -> None:
+    start = {"latitude": 10.5, "longitude": 20.5}
+    box = {"lowerLeft": start, "upperRight": start}
+    kept = {
+        "boundingBox": box,
+        "coordinateSystem": "ETRS89",
+        "courseLines": [{"numberOfPoints": 2}],
+        "coursePoints": [{"name": "Water"}],
+        "distanceMeter": 150.5,
+        "elapsedSeconds": 0,
+        "elevationGainMeter": 0.0,
+        "elevationLossMeter": 3.0,
+        "favorite": False,
+        "geoPoints": POINTS,
+        "hasPaceBand": False,
+        "hasPowerGuide": True,
+        "hasTurnDetectionDisabled": False,
+        "includeLaps": True,
+        "matchedToSegments": False,
+        "openStreetMap": True,
+        "sourceTypeId": 4,
+        "speedMeterPerSecond": 2.5,
+        "startPoint": start,
+        "userProfilePk": 900,
+    }
+    client = create_client(imported={**IMPORTED, **kept})
+
+    code, _, _ = run(
+        ["course", "create", "--file", write(tmp_path), "--name", "Hill Loop"],
+        client,
+        capsys,
+    )
+
+    assert code == 0
+    assert client.calls[-1][1][0] == {
+        **kept,
+        "courseName": "Hill Loop",
+        "activityTypePk": 1,
+        "rulePK": 2,
+    }
+
+
+def test_course_create_drops_imported_keys_the_save_does_not_take(
+    capsys: pytest.CaptureFixture[str], tmp_path: Path
+) -> None:
+    client = create_client(
+        imported={**IMPORTED, "courseId": 5, "userGroupPk": 7, "createDate": "x"}
+    )
+
+    code, _, _ = run(
+        [
+            "course",
+            "create",
+            "--file",
+            write(tmp_path),
+            "--name",
+            "Hill Loop",
+            "--type",
+            "trail_running",
+        ],
+        client,
+        capsys,
+    )
+
+    assert code == 0
+    assert client.calls[-1][1][0] == SAVE_BODY
 
 
 def test_course_create_defaults_to_running_private_and_the_imported_name(
@@ -379,7 +500,18 @@ def test_course_create_unknown_type_exits_2_before_the_import(
     assert client.calls == [("get_activity_types", (), {})]
 
 
-@pytest.mark.parametrize("imported", [None, [], {**IMPORTED, "geoPoints": []}, {}])
+@pytest.mark.parametrize(
+    "imported",
+    [
+        None,
+        [],
+        {},
+        {**IMPORTED, "geoPoints": []},
+        {**IMPORTED, "geoPoints": None},
+        {**IMPORTED, "geoPoints": {"latitude": 10.0, "longitude": 20.0}},
+        {**IMPORTED, "geoPoints": [[10.0, 20.0], [10.001, 20.001]]},
+    ],
+)
 def test_course_create_import_without_track_saves_nothing(
     capsys: pytest.CaptureFixture[str], tmp_path: Path, imported: Any
 ) -> None:

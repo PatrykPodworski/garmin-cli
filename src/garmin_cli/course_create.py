@@ -11,6 +11,39 @@ from garmin_cli.client import Connect
 from garmin_cli.courses import PRIVACY, summarize
 from garmin_cli.errors import GarminCliError
 
+# The import result is not a save body: it holds null for every field Garmin fills in
+# on save, and lacks a start point, coordinate system and source type. Garmin answers
+# HTTP 400 to it (#134). The save body keeps only the imported fields below that have a
+# value, from the list bpauli/gccli saves with (its `courseSaveFields`); a body built
+# this way saved live. garmin-cli sets the name, type and privacy itself.
+SAVE_FIELDS = frozenset(
+    {
+        "boundingBox",
+        "coordinateSystem",
+        "courseLines",
+        "coursePoints",
+        "distanceMeter",
+        "elapsedSeconds",
+        "elevationGainMeter",
+        "elevationLossMeter",
+        "favorite",
+        "geoPoints",
+        "hasPaceBand",
+        "hasPowerGuide",
+        "hasTurnDetectionDisabled",
+        "includeLaps",
+        "matchedToSegments",
+        "openStreetMap",
+        "sourceTypeId",
+        "speedMeterPerSecond",
+        "startPoint",
+        "userProfilePk",
+    }
+)
+# What a GPX course is when the import leaves it null: GPX coordinates are WGS84, and
+# 3 is the GPX source type in gccli and garmin_mcp.
+GPX_COURSE = {"coordinateSystem": "WGS84", "sourceTypeId": 3}
+
 
 def course_name(value: str) -> str:
     if not value.strip():
@@ -83,14 +116,21 @@ def create_course(args: argparse.Namespace, connect: Connect) -> Any:
         path.write_bytes(gpx)
         # Garmin parses the file into a course object without saving it.
         imported = client.import_course(str(path))
-    if not isinstance(imported, dict) or not imported.get("geoPoints"):
+    points = imported.get("geoPoints") if isinstance(imported, dict) else None
+    if not isinstance(points, list) or not points or not isinstance(points[0], dict):
         raise GarminCliError(
             f"Garmin found no track in {source_of(args)}, so no course was saved.",
             "Check that the file imports in Garmin Connect's course import.",
         )
     saved = client.create_course(
         {
-            **imported,
+            **GPX_COURSE,
+            "startPoint": points[0],
+            **{
+                key: value
+                for key, value in imported.items()
+                if key in SAVE_FIELDS and value is not None
+            },
             "courseName": args.name or imported.get("courseName") or stem,
             "activityTypePk": types[args.type],
             "rulePK": PRIVACY[args.privacy],
