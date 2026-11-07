@@ -778,16 +778,18 @@ plan. `--dry-run` prints the plan it would save and saves nothing.
 - `--split` is `km` (default) or `elevation`. Miles are not supported.
 - `--pacing-strategy` and `--uphill-effort` take any finite number (default 0).
   Garmin does not document their ranges, so garmin-cli checks only that the
-  value is a number. Pass a negative value with `=`, like `--pacing-strategy=-1`,
-  when it is not a plain decimal.
+  value is a number. A negative value in exponent form needs `=`, like
+  `--pacing-strategy=-1e-3`; plain decimals like `-0.5` work without it.
 - `--name` names the plan (default: the course name).
 
 The Garmin Connect website computes every split's target pace in the browser and
 sends the finished plan; Garmin's servers only store it. garmin-cli computes the
 splits with its own algorithm (`src/garmin_cli/pacing.py`, see
-[ADR 0001](docs/adr/0001-pacepro-clean-room-algorithm.md)), tuned against plans
-the website made for the same inputs. Its plans come close to the website's but
-are not identical:
+[ADR 0001](docs/adr/0001-pacepro-clean-room-algorithm.md)), tuned against the
+website's plan for the same inputs. So far one website plan has been compared:
+km splits with one setting of each slider, where every split's pace is within
+1 s/km of the website's. Other slider values and elevation splits have not been
+compared, so plans made with them may differ more. The model:
 
 - Each split's speed is the goal speed times
   `1 − uphill_effort × grade + 0.09 × pacing_strategy × (x − ½)`, where grade is
