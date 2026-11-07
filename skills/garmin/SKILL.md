@@ -1,15 +1,15 @@
 ---
 name: garmin
-description: Use when the user asks about their Garmin data — workouts (runs, rides), sleep or sleep score, weight, body fat, blood pressure, calories burned, resting heart rate, body battery, stress, training readiness, training status, training load, recovery time or HRV status — or asks to adjust a night's sleep times, log a weigh-in, add a manual activity, delete an activity, find a workout in their workout library, create or change a structured running workout, create a strength workout with exercises, sets, reps and weights, look up a strength exercise name, delete a workout, put a workout on their calendar, take it off or see what is scheduled, or save a GPX file as a course and list or look up their courses.
+description: Use when the user asks about their Garmin data — workouts (runs, rides), sleep or sleep score, weight, body fat, blood pressure, calories burned, resting heart rate, body battery, stress, training readiness, training status, training load, recovery time or HRV status — or asks to adjust a night's sleep times, log a weigh-in, add a manual activity, delete an activity, find a workout in their workout library, create or change a structured running workout, create a strength workout with exercises, sets, reps and weights, look up a strength exercise name, delete a workout, put a workout on their calendar, take it off or see what is scheduled, save a GPX file as a course, list or look up their courses, send a course to their watch, or list their devices.
 ---
 
 # garmin
 
 `garmin` reads the user's Garmin Connect data and prints JSON. Run it with Bash.
-Ten commands change data: `garmin weight add`, `garmin sleep set`,
+Eleven commands change data: `garmin weight add`, `garmin sleep set`,
 `garmin activity add`, `garmin activity delete`, `garmin workout add`,
 `garmin workout edit`, `garmin workout delete`, `garmin workout schedule`,
-`garmin workout unschedule` and `garmin course create`.
+`garmin workout unschedule`, `garmin course create` and `garmin course send`.
 
 ## Login
 
@@ -48,6 +48,8 @@ garmin exercise list --search TEXT [--category CATEGORY] [--limit N]  # strength
 garmin course create --file GPX [--name NAME] [--type KEY] [--privacy private|public]  # import a GPX and save it as a course (default running, private)
 garmin course list --limit 50           # saved courses, default limit 20
 garmin course view ID                   # one course: distance, elevation, type, privacy; ID from `course list`
+garmin course send ID --device DEVICE_ID  # queue a course for a watch; DEVICE_ID from `device list`
+garmin device list                      # devices on the account: id, name, model
 ```
 
 `garmin <command> --help` lists every flag.
@@ -91,8 +93,13 @@ garmin course view ID                   # one course: distance, elevation, type,
 - `garmin course create` writes to the user's Garmin account. Run it only for a GPX
   file the user named, with the name, type and privacy they gave; leave privacy at
   `private` unless they asked for public. Each run saves a new course, so after a
-  failed run check `garmin course list` before retrying. It does not send the course
-  to the watch; tell the user to do that from Garmin Connect.
+  failed run check `garmin course list` before retrying.
+- `garmin course send` queues a course for a watch in the user's Garmin account.
+  Run it only for a course and device the user named. Pick the device from
+  `garmin device list` by the name or model the user gave; when more than one
+  matches, or the user named none, ask. Success means Garmin queued the course,
+  not that it is on the watch: tell the user it arrives on the watch's next sync.
+  Each run queues it again, so do not retry after success.
 - Summary floats are rounded to two decimals. Quote them as printed.
 - Start with the summary. Add `--raw` only when the field you need is missing from it:
   raw output is the full Garmin response, many times larger.

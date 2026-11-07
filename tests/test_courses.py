@@ -206,7 +206,7 @@ def test_course_without_command_exits_2(capsys: pytest.CaptureFixture[str]) -> N
         2,
         "",
         "garmin: No command given. Run 'garmin course <command>', one of: list, "
-        "view, create.\n",
+        "view, create, send.\n",
     )
 
 

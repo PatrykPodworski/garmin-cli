@@ -23,7 +23,9 @@ from garmin_cli import (
     activity_delete,
     auth,
     course_create,
+    course_send,
     courses,
+    devices,
     exercises,
     health,
     recovery,
@@ -217,7 +219,10 @@ def build_parser() -> CliParser:
     workout_schedule.register(subparsers)
     workout_unschedule.register(subparsers)
     exercises.register(subparsers)
-    course_create.register(courses.register(subparsers))
+    course_commands = courses.register(subparsers)
+    course_create.register(course_commands)
+    course_send.register(course_commands)
+    devices.register(subparsers)
     # The default names every choice, the two-word commands like `sleep set` too.
     subparsers.metavar = f"{{{','.join(parser.listed)}}}"
     return parser
