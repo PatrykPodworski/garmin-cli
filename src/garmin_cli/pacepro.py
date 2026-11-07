@@ -9,8 +9,9 @@ LIST_IDS = "Run 'garmin pacepro list' to list IDs."
 # The `splitType` values seen on a real account. Any other value passes through.
 SPLITS: dict[Any, str] = {"DISTANCE_KILOMETER": "km", "ELEVATION": "elevation"}
 # garminconnect has a list call only: no create, edit, delete, get or send.
+# `garmin pacepro create` posts to the website's endpoint itself.
 UI_ONLY = (
-    "Create, edit and send plans in Garmin Connect (Training & Planning > PacePro "
+    "Edit, delete and send plans in Garmin Connect (Training & Planning > PacePro "
     "Pacing Strategies); garminconnect has no call for those."
 )
 
@@ -69,6 +70,11 @@ def summarize_split(raw: dict[str, Any]) -> dict[str, Any]:
     return {name: value for name, value in split.items() if value is not None}
 
 
+def show(plan: dict[str, Any]) -> dict[str, Any]:
+    splits = plan.get("paceBandSplits") or []
+    return {**summarize(plan), "splits": [summarize_split(split) for split in splits]}
+
+
 def pacepro_list(args: argparse.Namespace, connect: Connect) -> Any:
     found = connect().get_pace_bands()[: args.limit]
     return found if args.raw else [summarize(plan) for plan in found]
@@ -78,23 +84,20 @@ def pacepro_view(args: argparse.Namespace, connect: Connect) -> Any:
     # Garmin has no call for one plan; the list call returns every plan whole.
     for plan in connect().get_pace_bands():
         if plan.get("paceBandPk") == args.id:
-            if args.raw:
-                return plan
-            splits = plan.get("paceBandSplits") or []
-            return {
-                **summarize(plan),
-                "splits": [summarize_split(split) for split in splits],
-            }
+            return plan if args.raw else show(plan)
     raise GarminCliError(f"No PacePro plan with ID {args.id}.", LIST_IDS)
 
 
-def register(subparsers: "argparse._SubParsersAction[argparse.ArgumentParser]") -> None:
+def register(
+    subparsers: "argparse._SubParsersAction[argparse.ArgumentParser]",
+) -> "argparse._SubParsersAction[argparse.ArgumentParser]":
+    """Returns the `pacepro` commands, for the write module to add `create`."""
     pacepro_parser = subparsers.add_parser(
-        "pacepro", help="PacePro pacing plans, read-only: list and view"
+        "pacepro", help="PacePro pacing plans: list, view and create"
     )
     # `CliParser.explain` names a missing command by this metavar.
     commands = pacepro_parser.add_subparsers(
-        dest="subcommand", required=True, metavar="{list,view}"
+        dest="subcommand", required=True, metavar="{list,view,create}"
     )
     list_parser = commands.add_parser(
         "list",
@@ -125,3 +128,4 @@ def register(subparsers: "argparse._SubParsersAction[argparse.ArgumentParser]") 
         "--raw", action="store_true", help="print the full Garmin response"
     )
     view_parser.set_defaults(run=pacepro_view)
+    return commands
