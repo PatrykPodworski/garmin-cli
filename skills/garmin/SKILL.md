@@ -1,6 +1,6 @@
 ---
 name: garmin
-description: Use when the user asks about their Garmin data — workouts (runs, rides), sleep or sleep score, weight, body fat, blood pressure, calories burned, resting heart rate, body battery, stress, training readiness, training status, training load, recovery time or HRV status — or asks to adjust a night's sleep times, log a weigh-in, add a manual activity, delete an activity, find a workout in their workout library, create or change a structured running workout, create a strength workout with exercises, sets, reps and weights, look up a strength exercise name, delete a workout, put a workout on their calendar, take it off or see what is scheduled, save a GPX file as a course, list or look up their courses, send a course to their watch, or list their devices.
+description: Use when the user asks about their Garmin data — workouts (runs, rides), sleep or sleep score, weight, body fat, blood pressure, calories burned, resting heart rate, body battery, stress, training readiness, training status, training load, recovery time or HRV status — or asks to adjust a night's sleep times, log a weigh-in, add a manual activity, delete an activity, find a workout in their workout library, create or change a structured running workout, create a strength workout with exercises, sets, reps and weights, look up a strength exercise name, delete a workout, put a workout on their calendar, take it off or see what is scheduled, save a GPX file as a course, list or look up their courses, send a course to their watch, list or look up their PacePro pacing plans, or list their devices.
 ---
 
 # garmin
@@ -49,6 +49,8 @@ garmin course create --file GPX [--name NAME] [--type KEY] [--privacy private|pu
 garmin course list --limit 50           # saved courses, default limit 20
 garmin course view ID                   # one course: distance, elevation, type, privacy; ID from `course list`
 garmin course send ID --device DEVICE_ID  # queue a course for a watch; DEVICE_ID from `device list`
+garmin pacepro list --limit 50          # PacePro plans: course, split mode, goal time and pace; default limit 20
+garmin pacepro view ID                  # one PacePro plan with each split's target pace; ID from `pacepro list`
 garmin device list                      # devices on the account: id, name, model
 ```
 
@@ -100,6 +102,11 @@ garmin device list                      # devices on the account: id, name, mode
   matches, or the user named none, ask. Success means Garmin queued the course,
   not that it is on the watch: tell the user it arrives on the watch's next sync.
   Each run queues it again, so do not retry after success.
+- PacePro is read-only. When the user asks to create, change, delete or send a
+  PacePro plan, say the CLI cannot, and point them to Garmin Connect: Training &
+  Planning → PacePro Pacing Strategies. Do not try another command or a raw request.
+  Times are seconds and paces seconds per km; convert them to `h:mm:ss` and
+  `m:ss /km` for the user.
 - Summary floats are rounded to two decimals. Quote them as printed.
 - Start with the summary. Add `--raw` only when the field you need is missing from it:
   raw output is the full Garmin response, many times larger.

@@ -2,7 +2,7 @@
 
 `garmin` reads your Garmin Connect data and prints it as JSON. It can also log a
 weigh-in, adjust a night's sleep times, manage workouts, save GPX files as
-courses and send a course to a watch. Scripts, agents and people at a terminal can use it. It wraps
+courses, send a course to a watch and read PacePro plans. Scripts, agents and people at a terminal can use it. It wraps
 [python-garminconnect](https://github.com/cyberjunky/python-garminconnect).
 
 ## Install
@@ -688,6 +688,75 @@ itself, through the library's HTTP client and the same endpoint the library's
 [bpauli/gccli](https://github.com/bpauli/gccli) (`internal/garminapi/courses.go`,
 `SendCourseToDevice`). If Garmin changes the message format, the command fails
 with `Garmin Connect rejected the request`.
+
+### pacepro list
+
+```sh
+garmin pacepro list
+garmin pacepro list --limit 50
+```
+
+```json
+[
+  {
+    "id": 7654321,
+    "name": "Hill repeats 10k",
+    "course_id": 1234567,
+    "split": "elevation",
+    "distance_m": 10000.0,
+    "goal_time_s": 4000,
+    "goal_pace_s_per_km": 400,
+    "pacing_strategy": -0.25,
+    "uphill_effort": 1.5,
+    "splits": 12
+  }
+]
+```
+
+The PacePro plans saved in Garmin Connect, in the order Garmin returns them.
+`--limit` caps the count (default 20). No plans prints `[]`. A key Garmin has no
+value for is left out.
+
+- `course_id` is the course the plan was made from; `garmin course view` takes it.
+- `split` is `km` or `elevation`, the split modes seen on a real account. Any other
+  value Garmin sends (for example miles) is printed unchanged.
+- `goal_pace_s_per_km` comes from Garmin's goal speed; `splits` is the number of splits.
+- `pacing_strategy` and `uphill_effort` are Garmin's slider values, printed unchanged.
+  Garmin does not document their scale or which sign means a negative split.
+
+### pacepro view
+
+```sh
+garmin pacepro view 7654321
+```
+
+```json
+{
+  "id": 7654321,
+  "name": "Hill repeats 10k",
+  "split": "elevation",
+  "splits": [
+    {
+      "distance_m": 4000.0,
+      "pace_s_per_km": 417,
+      "elevation_change_m": 30.5,
+      "cumulative_distance_m": 4000.0,
+      "cumulative_time_s": 1666.67
+    }
+  ]
+}
+```
+
+One plan by the `id` from `garmin pacepro list`, with the `pacepro list` keys and
+its splits in order: each split's length, target pace, elevation change from start
+to end, and the distance and time from the start at its end. An unknown ID exits 1.
+Garmin has no call for one plan, so the command reads the whole list and picks the
+plan from it.
+
+PacePro support is read-only. garminconnect 0.3.20 has one PacePro call,
+`get_pace_bands()`, and no call to create, edit, delete or send a plan. Make plans
+from a course and send them to the watch in Garmin Connect: Training & Planning →
+PacePro Pacing Strategies.
 
 ### device list
 
