@@ -31,6 +31,7 @@ from garmin_cli import (
     pacepro,
     pacepro_create,
     pacepro_delete,
+    pacepro_edit,
     recovery,
     sleep,
     sleep_set,
@@ -235,6 +236,7 @@ def build_parser() -> CliParser:
     course_send.register(course_commands)
     pacepro_commands = pacepro.register(subparsers)
     pacepro_create.register(pacepro_commands)
+    pacepro_edit.register(pacepro_commands)
     pacepro_delete.register(pacepro_commands)
     devices.register(subparsers)
     # The default names every choice, the two-word commands like `sleep set` too.

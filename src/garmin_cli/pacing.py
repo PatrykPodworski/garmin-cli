@@ -23,6 +23,18 @@ CLIMB_CURVE = 2.5
 # Descents help less as they steepen: the gain peaks at about -8 % and is gone by
 # about -17 %, where braking makes a descent slower than flat ground.
 DESCENT_CURVE = 10.0
+# Settings the Garmin Connect website sends with a km-split plan at its default
+# sliders, as the reference plans store them.
+WEBSITE_SETTINGS = {
+    "splitType": "DISTANCE_KILOMETER",
+    "distanceUnit": None,
+    "uphillEffort": 0.0,
+    "pacingStrategy": 0.0,
+    "manualPaceEdit": False,
+    "elevationSegmentationTolerance": 50.0,
+    "paceFactor": 2.0,
+    "elevationSegmentMinLength": 1700.0,
+}
 
 Point = dict[str, Any]
 
@@ -97,3 +109,26 @@ def compute_splits(
             }
         )
     return result
+
+
+def km_plan(
+    course_id: int,
+    name: str | None,
+    goal_time: int,
+    distance: float,
+    geo_points: list[Point],
+) -> dict[str, Any]:
+    """The plan in the shape the website saves it: a summary with km splits at the
+    default sliders, for a course of `distance` m with these track points."""
+    summary = {
+        "courseId": course_id,
+        "name": name,
+        "goalTime": goal_time,
+        "goalSpeed": distance / goal_time,
+        "totalDistance": distance,
+        **WEBSITE_SETTINGS,
+    }
+    return {
+        "paceBandSummary": summary,
+        "paceBandSplits": compute_splits(geo_points, summary),
+    }
