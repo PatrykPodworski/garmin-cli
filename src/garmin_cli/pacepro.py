@@ -11,10 +11,10 @@ LIST_IDS = "Run 'garmin pacepro list' to list IDs."
 # The `splitType` values seen on a real account. Any other value passes through.
 SPLITS: dict[Any, str] = {"DISTANCE_KILOMETER": "km", "ELEVATION": "elevation"}
 # garminconnect has a list call only: no create, edit, delete, get or send.
-# `fetch_plan`, `garmin pacepro delete` and `garmin pacepro send` call the website's
-# endpoints themselves.
+# `fetch_plan`, `garmin pacepro create`, `garmin pacepro delete` and
+# `garmin pacepro send` call the website's endpoints themselves.
 UI_ONLY = (
-    "Create and edit plans in Garmin Connect (Training & Planning > PacePro "
+    "Edit plans in Garmin Connect (Training & Planning > PacePro "
     "Pacing Strategies); garminconnect has no call for those."
 )
 
@@ -77,6 +77,11 @@ def summarize_split(raw: dict[str, Any]) -> dict[str, Any]:
     return {name: value for name, value in split.items() if value is not None}
 
 
+def show(plan: dict[str, Any]) -> dict[str, Any]:
+    splits = plan.get("paceBandSplits") or []
+    return {**summarize(plan), "splits": [summarize_split(split) for split in splits]}
+
+
 def pacepro_list(args: argparse.Namespace, connect: Connect) -> Any:
     found = connect().get_pace_bands()[: args.limit]
     return found if args.raw else [summarize(plan) for plan in found]
@@ -92,10 +97,7 @@ def fetch_plan(client: GarminClient, plan_id: int) -> dict[str, Any]:
 
 def pacepro_view(args: argparse.Namespace, connect: Connect) -> Any:
     plan = fetch_plan(connect(), args.id)
-    if args.raw:
-        return plan
-    splits = plan.get("paceBandSplits") or []
-    return {**summarize(plan), "splits": [summarize_split(split) for split in splits]}
+    return plan if args.raw else show(plan)
 
 
 def register(
@@ -103,11 +105,11 @@ def register(
 ) -> "argparse._SubParsersAction[argparse.ArgumentParser]":
     """Returns the `pacepro` commands, for the write modules to add theirs."""
     pacepro_parser = subparsers.add_parser(
-        "pacepro", help="PacePro pacing plans: list, view, delete and send"
+        "pacepro", help="PacePro pacing plans: list, view, create, delete and send"
     )
     # `CliParser.explain` names a missing command by this metavar.
     commands = pacepro_parser.add_subparsers(
-        dest="subcommand", required=True, metavar="{list,view,delete,send}"
+        dest="subcommand", required=True, metavar="{list,view,create,delete,send}"
     )
     list_parser = commands.add_parser(
         "list",
