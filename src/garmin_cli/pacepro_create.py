@@ -7,20 +7,7 @@ from garmin_cli.client import Connect
 from garmin_cli.courses import course_id, fetch_course
 from garmin_cli.errors import GarminCliError
 from garmin_cli.pacepro import show
-from garmin_cli.pacing import compute_splits
-
-# Settings the Garmin Connect website sends with a km-split plan at its default
-# sliders, as the reference plans store them.
-WEBSITE_SETTINGS = {
-    "splitType": "DISTANCE_KILOMETER",
-    "distanceUnit": None,
-    "uphillEffort": 0.0,
-    "pacingStrategy": 0.0,
-    "manualPaceEdit": False,
-    "elevationSegmentationTolerance": 50.0,
-    "paceFactor": 2.0,
-    "elevationSegmentMinLength": 1700.0,
-}
+from garmin_cli.pacing import km_plan
 
 
 def goal_time(value: str) -> int:
@@ -60,18 +47,9 @@ def create_plan(args: argparse.Namespace, connect: Connect) -> Any:
     points = elevation_track(course, args.course)
     distance = course["distanceMeter"]
     seconds = args.goal_time or round(args.goal_pace * distance / 1000)
-    summary = {
-        "courseId": args.course,
-        "name": args.name or course.get("courseName"),
-        "goalTime": seconds,
-        "goalSpeed": distance / seconds,
-        "totalDistance": distance,
-        **WEBSITE_SETTINGS,
-    }
-    plan = {
-        "paceBandSummary": summary,
-        "paceBandSplits": compute_splits(points, summary),
-    }
+    plan = km_plan(
+        args.course, args.name or course.get("courseName"), seconds, distance, points
+    )
     if args.dry_run:
         print(
             f"garmin: Would create a PacePro plan from course {args.course}; "

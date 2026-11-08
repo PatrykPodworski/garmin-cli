@@ -11,11 +11,11 @@ LIST_IDS = "Run 'garmin pacepro list' to list IDs."
 # The `splitType` values seen on a real account. Any other value passes through.
 SPLITS: dict[Any, str] = {"DISTANCE_KILOMETER": "km", "ELEVATION": "elevation"}
 # garminconnect has a list call only: no create, edit, delete, get or send.
-# `fetch_plan`, `garmin pacepro create`, `garmin pacepro delete` and
-# `garmin pacepro send` call the website's endpoints themselves.
+# `fetch_plan` and the create, edit, delete and send commands call the website's
+# endpoints themselves.
 UI_ONLY = (
-    "Edit plans in Garmin Connect (Training & Planning > PacePro "
-    "Pacing Strategies); garminconnect has no call for those."
+    "Change a plan's split type, sliders or single paces in Garmin Connect "
+    "(Training & Planning > PacePro Pacing Strategies); garmin-cli cannot."
 )
 
 
@@ -105,11 +105,14 @@ def register(
 ) -> "argparse._SubParsersAction[argparse.ArgumentParser]":
     """Returns the `pacepro` commands, for the write modules to add theirs."""
     pacepro_parser = subparsers.add_parser(
-        "pacepro", help="PacePro pacing plans: list, view, create, delete and send"
+        "pacepro",
+        help="PacePro pacing plans: list, view, create, edit, delete and send",
     )
     # `CliParser.explain` names a missing command by this metavar.
     commands = pacepro_parser.add_subparsers(
-        dest="subcommand", required=True, metavar="{list,view,create,delete,send}"
+        dest="subcommand",
+        required=True,
+        metavar="{list,view,create,edit,delete,send}",
     )
     list_parser = commands.add_parser(
         "list",

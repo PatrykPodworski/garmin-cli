@@ -2,7 +2,7 @@
 
 `garmin` reads your Garmin Connect data and prints it as JSON. It can also log a
 weigh-in, adjust a night's sleep times, manage workouts, save GPX files as
-courses, send a course to a watch, and read, create, delete and send PacePro plans. Scripts, agents and people at a terminal can use it. It wraps
+courses, send a course to a watch, and read, create, edit, delete and send PacePro plans. Scripts, agents and people at a terminal can use it. It wraps
 [python-garminconnect](https://github.com/cyberjunky/python-garminconnect).
 
 ## Install
@@ -753,9 +753,10 @@ to end, and the distance and time from the start at its end. An unknown ID exits
 
 garminconnect 0.3.20 has one PacePro call, `get_pace_bands()`, and no call to
 create, edit, delete or send a plan. `pacepro view`, `pacepro create`,
-`pacepro delete` and `pacepro send` send the Garmin Connect website's own requests
-through the library's HTTP client. Edit plans in Garmin Connect: Training &
-Planning → PacePro Pacing Strategies.
+`pacepro edit`, `pacepro delete` and `pacepro send` send the Garmin Connect
+website's own requests through the library's HTTP client. Change a plan's split
+type, sliders or single paces in Garmin Connect: Training & Planning → PacePro
+Pacing Strategies.
 
 ### pacepro create
 
@@ -799,6 +800,30 @@ model:
 - The splits end at the track's great-circle length, which is a little shorter
   than the course distance Garmin shows, as on the website. Each split's grade is
   measured along that length.
+
+### pacepro edit
+
+```sh
+garmin pacepro edit 7654321 --name "Hill race"
+garmin pacepro edit 7654321 --goal-time 0:58:00
+garmin pacepro edit 7654321 --goal-pace 5:40 --name "Hill race"
+```
+
+Changes a saved PacePro plan's name, goal or both, and keeps its ID. Give at least
+one of `--name`, `--goal-time H:MM:SS` and `--goal-pace M:SS` (per km); with none,
+or with both goals, it exits 2. The command first reads the plan, so an unknown ID
+fails with the `garmin pacepro view` message and changes nothing. stdout is the
+stored plan with the keys of `garmin pacepro view`, and stderr
+`garmin: Updated PacePro plan "Hill race".`
+
+- A new name alone keeps the plan's splits and settings.
+- A new goal recomputes every split from the plan's course with the same algorithm
+  as `pacepro create`, so the course needs a GPS track with elevation. A goal pace
+  is turned into a goal time over the course distance. The plan is then saved with
+  km splits and the default sliders, even when it had elevation splits, other
+  slider values or paces edited by hand on the website. When it had any of those,
+  stderr says so: `garmin: Updated PacePro plan "Hill race"; it now has km splits
+  at the default sliders.`
 
 ### pacepro delete
 
@@ -913,6 +938,7 @@ Messages for status 1:
 | `course send --device <id>` device not found | `garmin: No device with ID <id>. Run 'garmin device list' to list IDs.` |
 | `pacepro create --course <id>` course not found | `garmin: No course with ID <id>. Run 'garmin course list' to list IDs.` |
 | `pacepro create` course without a track | `garmin: Course <id> has no track with elevation, which PacePro needs. Pick another course from 'garmin course list'.` |
+| `pacepro edit <id>` plan not found | `garmin: No PacePro plan with ID <id>. Run 'garmin pacepro list' to list IDs.` |
 | `pacepro send <id>` plan not found | `garmin: No PacePro plan with ID <id>. Run 'garmin pacepro list' to list IDs.` |
 | `pacepro send --device <id>` device not found | `garmin: No device with ID <id>. Run 'garmin device list' to list IDs.` |
 | `course create` import has no track | `garmin: Garmin found no track in '<file>', so no course was saved. Check that the file imports in Garmin Connect's course import.` |
