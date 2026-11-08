@@ -3,6 +3,7 @@ from typing import Any
 
 import pytest
 from conftest import FakeClient
+from garminconnect import GarminConnectNotFoundError
 
 from garmin_cli.cli import main
 
@@ -57,6 +58,7 @@ FLAT = {
     "paceBandSplits": [],
 }
 LIST_IDS = "Run 'garmin pacepro list' to list IDs."
+PLAN_PATH = "/course-service/pacebands/501"
 
 
 def run(
@@ -163,7 +165,7 @@ def test_pacepro_list_invalid_limit_exits_2(
 def test_pacepro_view_shows_the_plan_and_its_splits(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    client = FakeClient(get_pace_bands=[FLAT, PLAN])
+    client = FakeClient(connectapi=PLAN)
 
     code, out, err = run(["pacepro", "view", "501"], client, capsys)
 
@@ -187,7 +189,7 @@ def test_pacepro_view_shows_the_plan_and_its_splits(
             },
         ],
     }
-    assert client.calls == [("get_pace_bands", (), {})]
+    assert client.calls == [("connectapi", (PLAN_PATH,), {})]
 
 
 def test_pacepro_view_leaves_out_missing_split_fields(
@@ -204,9 +206,7 @@ def test_pacepro_view_leaves_out_missing_split_fields(
     ]
     plan = {"paceBandPk": 506, "paceBandSplits": splits}
 
-    code, out, _ = run(
-        ["pacepro", "view", "506"], FakeClient(get_pace_bands=[plan]), capsys
-    )
+    code, out, _ = run(["pacepro", "view", "506"], FakeClient(connectapi=plan), capsys)
 
     assert code == 0
     assert json.loads(out) == {
@@ -220,9 +220,7 @@ def test_pacepro_view_plan_without_splits_shows_empty_list(
 ) -> None:
     plan = {"paceBandPk": 507}
 
-    code, out, _ = run(
-        ["pacepro", "view", "507"], FakeClient(get_pace_bands=[plan]), capsys
-    )
+    code, out, _ = run(["pacepro", "view", "507"], FakeClient(connectapi=plan), capsys)
 
     assert (code, json.loads(out)) == (0, {"id": 507, "splits": []})
 
@@ -230,7 +228,7 @@ def test_pacepro_view_plan_without_splits_shows_empty_list(
 def test_pacepro_view_raw_prints_garmin_response(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    client = FakeClient(get_pace_bands=[FLAT, PLAN])
+    client = FakeClient(connectapi=PLAN)
 
     code, out, _ = run(["pacepro", "view", "501", "--raw"], client, capsys)
 
@@ -239,13 +237,14 @@ def test_pacepro_view_raw_prints_garmin_response(
 
 
 def test_pacepro_view_unknown_id_exits_1(capsys: pytest.CaptureFixture[str]) -> None:
-    client = FakeClient(get_pace_bands=[PLAN])
+    client = FakeClient(connectapi=GarminConnectNotFoundError("404"))
 
     assert run(["pacepro", "view", "999"], client, capsys) == (
         1,
         "",
         f"garmin: No PacePro plan with ID 999. {LIST_IDS}\n",
     )
+    assert client.calls == [("connectapi", ("/course-service/pacebands/999",), {})]
 
 
 @pytest.mark.parametrize("value", ["x", "0", "-5"])
@@ -263,9 +262,10 @@ def test_pacepro_view_invalid_id_exits_2(
 
 
 def test_pacepro_view_accepts_id_1(capsys: pytest.CaptureFixture[str]) -> None:
-    client = FakeClient(get_pace_bands=[{"paceBandPk": 1}])
+    client = FakeClient(connectapi={"paceBandPk": 1})
 
     assert run(["pacepro", "view", "1", "--raw"], client, capsys)[0] == 0
+    assert client.calls == [("connectapi", ("/course-service/pacebands/1",), {})]
 
 
 def test_pacepro_view_missing_id_exits_2(capsys: pytest.CaptureFixture[str]) -> None:
@@ -282,5 +282,5 @@ def test_pacepro_without_command_exits_2(capsys: pytest.CaptureFixture[str]) -> 
         2,
         "",
         "garmin: No command given. Run 'garmin pacepro <command>', one of: list, "
-        "view, create.\n",
+        "view, create, delete.\n",
     )
