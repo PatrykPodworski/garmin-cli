@@ -1,15 +1,16 @@
 ---
 name: garmin
-description: Use when the user asks about their Garmin data — workouts (runs, rides), sleep or sleep score, weight, body fat, blood pressure, calories burned, resting heart rate, body battery, stress, training readiness, training status, training load, recovery time or HRV status — or asks to adjust a night's sleep times, log a weigh-in, add a manual activity, delete an activity, find a workout in their workout library, create or change a structured running workout, create a strength workout with exercises, sets, reps and weights, look up a strength exercise name, delete a workout, put a workout on their calendar, take it off or see what is scheduled, save a GPX file as a course, list or look up their courses, send a course to their watch, list or look up their PacePro pacing plans, or list their devices.
+description: Use when the user asks about their Garmin data — workouts (runs, rides), sleep or sleep score, weight, body fat, blood pressure, calories burned, resting heart rate, body battery, stress, training readiness, training status, training load, recovery time or HRV status — or asks to adjust a night's sleep times, log a weigh-in, add a manual activity, delete an activity, find a workout in their workout library, create or change a structured running workout, create a strength workout with exercises, sets, reps and weights, look up a strength exercise name, delete a workout, put a workout on their calendar, take it off or see what is scheduled, save a GPX file as a course, list or look up their courses, send a course to their watch, list or look up their PacePro pacing plans, create a PacePro plan from a course, or list their devices.
 ---
 
 # garmin
 
 `garmin` reads the user's Garmin Connect data and prints JSON. Run it with Bash.
-Eleven commands change data: `garmin weight add`, `garmin sleep set`,
+Twelve commands change data: `garmin weight add`, `garmin sleep set`,
 `garmin activity add`, `garmin activity delete`, `garmin workout add`,
 `garmin workout edit`, `garmin workout delete`, `garmin workout schedule`,
-`garmin workout unschedule`, `garmin course create` and `garmin course send`.
+`garmin workout unschedule`, `garmin course create`, `garmin course send` and
+`garmin pacepro create`.
 
 ## Login
 
@@ -51,6 +52,7 @@ garmin course view ID                   # one course: distance, elevation, type,
 garmin course send ID --device DEVICE_ID  # queue a course for a watch; DEVICE_ID from `device list`
 garmin pacepro list --limit 50          # PacePro plans: course, split mode, goal time and pace; default limit 20
 garmin pacepro view ID                  # one PacePro plan with each split's target pace; ID from `pacepro list`
+garmin pacepro create --course ID (--goal-time H:MM:SS | --goal-pace M:SS) [--name NAME] [--dry-run]  # compute a plan with km splits and the website's default sliders from a course and save it
 garmin device list                      # devices on the account: id, name, model
 ```
 
@@ -102,9 +104,16 @@ garmin device list                      # devices on the account: id, name, mode
   matches, or the user named none, ask. Success means Garmin queued the course,
   not that it is on the watch: tell the user it arrives on the watch's next sync.
   Each run queues it again, so do not retry after success.
-- PacePro is read-only. When the user asks to create, change, delete or send a
-  PacePro plan, say the CLI cannot, and point them to Garmin Connect: Training &
-  Planning → PacePro Pacing Strategies. Do not try another command or a raw request.
+- `garmin pacepro create` writes a new plan to the user's Garmin account. Run it
+  only for a course and goal the user gave. It always makes km splits with the
+  website's default sliders; for elevation splits, miles or other slider values,
+  point the user to the Garmin Connect website. Run it with `--dry-run` first and
+  show the user the splits. Each run saves a new plan, so after a failed run check
+  `garmin pacepro list` before retrying. Its splits come from garmin-cli's own
+  algorithm and differ a little from plans made on the Garmin Connect website.
+- The CLI cannot change, delete or send a PacePro plan. When the user asks for
+  that, point them to Garmin Connect: Training & Planning → PacePro Pacing
+  Strategies. Do not try another command or a raw request.
   Times are seconds and paces seconds per km; convert them to `h:mm:ss` and
   `m:ss /km` for the user.
 - Summary floats are rounded to two decimals. Quote them as printed.

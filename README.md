@@ -2,7 +2,7 @@
 
 `garmin` reads your Garmin Connect data and prints it as JSON. It can also log a
 weigh-in, adjust a night's sleep times, manage workouts, save GPX files as
-courses, send a course to a watch and read PacePro plans. Scripts, agents and people at a terminal can use it. It wraps
+courses, send a course to a watch, and read and create PacePro plans. Scripts, agents and people at a terminal can use it. It wraps
 [python-garminconnect](https://github.com/cyberjunky/python-garminconnect).
 
 ## Install
@@ -753,10 +753,53 @@ to end, and the distance and time from the start at its end. An unknown ID exits
 Garmin has no call for one plan, so the command reads the whole list and picks the
 plan from it.
 
-PacePro support is read-only. garminconnect 0.3.20 has one PacePro call,
-`get_pace_bands()`, and no call to create, edit, delete or send a plan. Make plans
-from a course and send them to the watch in Garmin Connect: Training & Planning →
-PacePro Pacing Strategies.
+garminconnect 0.3.20 has one PacePro call, `get_pace_bands()`, and no call to
+create, edit, delete or send a plan. `garmin pacepro create` saves plans through
+the endpoint the Garmin Connect website uses. Edit, delete and send plans to the
+watch in Garmin Connect: Training & Planning → PacePro Pacing Strategies.
+
+### pacepro create
+
+```sh
+garmin pacepro create --course 1234567 --goal-time 1:00:00 --dry-run
+garmin pacepro create --course 1234567 --goal-pace 5:45 --name "Hill race"
+```
+
+Computes a PacePro plan from a saved course and saves it to Garmin Connect. stdout
+is the saved plan with the keys of `garmin pacepro view`, and stderr
+`garmin: Created PacePro plan 7654321 from course 1234567.` Each run saves a new
+plan. `--dry-run` prints the plan it would save and saves nothing.
+
+- `--course` takes an `id` from `garmin course list`. An unknown ID, or a course
+  without a GPS track with elevation, exits 1 before anything is saved.
+- Give exactly one of `--goal-time H:MM:SS` and `--goal-pace M:SS` (per km).
+  The goal pace is turned into a goal time over the course distance.
+- `--name` names the plan (default: the course name).
+
+The plan has a split every km and the website's default sliders (uphill effort 0,
+pacing strategy 0). Elevation splits, miles and other slider values are not
+supported; make those plans on the website.
+
+The Garmin Connect website computes every split's target pace in the browser and
+sends the finished plan; Garmin's servers only store it. garmin-cli computes the
+splits with its own algorithm (`src/garmin_cli/pacing.py`, see
+[ADR 0001](docs/adr/0001-pacepro-clean-room-algorithm.md)), tuned against plans
+saved on the website with the default sliders: ten plans on courses from 5 to
+55 km, flat to hilly, with grades per km from −11 % to +13 %. On nine of them every
+split is within 3 s/km of the website's, and on the tenth within 3.4 s/km. The
+model:
+
+- Each split runs at the goal pace times
+  `1 + 1.68 × grade + 2.5 × grade²` on a climb and
+  `1 + 1.68 × grade + 10 × grade²` on a descent, where grade is the split's
+  elevation change over its length. All splits, the last one included, are then
+  scaled to finish in the goal time.
+- Near flat, 1 % of grade makes a split about 1.7 % slower uphill or faster
+  downhill. Climbs cost a little more as they steepen. On descents the gain peaks
+  at about −8 % (7 % faster than flat) and is gone by about −17 %.
+- The splits end at the track's great-circle length, which is a little shorter
+  than the course distance Garmin shows, as on the website. Each split's grade is
+  measured along that length.
 
 ### device list
 
@@ -817,6 +860,8 @@ Messages for status 1:
 | `course view <id>` not found | `garmin: No course with ID <id>. Run 'garmin course list' to list IDs.` |
 | `course send <id>` course not found | `garmin: No course with ID <id>. Run 'garmin course list' to list IDs.` |
 | `course send --device <id>` device not found | `garmin: No device with ID <id>. Run 'garmin device list' to list IDs.` |
+| `pacepro create --course <id>` course not found | `garmin: No course with ID <id>. Run 'garmin course list' to list IDs.` |
+| `pacepro create` course without a track | `garmin: Course <id> has no track with elevation, which PacePro needs. Pick another course from 'garmin course list'.` |
 | `course create` import has no track | `garmin: Garmin found no track in '<file>', so no course was saved. Check that the file imports in Garmin Connect's course import.` |
 | `workout unschedule <id>` not found | `garmin: No calendar entry with schedule ID <id>. Run 'garmin workout calendar' to list schedule IDs.` |
 | Rate limit | `garmin: Garmin is rate-limiting requests from this machine. Wait a few minutes and try again.` |
