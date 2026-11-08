@@ -10,7 +10,13 @@ class HttpClient(Protocol):
     ) -> Any: ...
 
     def post(
-        self, _domain: str, _path: str, /, *, json: list[dict[str, Any]], api: bool
+        self,
+        _domain: str,
+        _path: str,
+        /,
+        *,
+        json: list[dict[str, Any]] | None = None,
+        api: bool,
     ) -> Any: ...
 
     def delete(self, _domain: str, _path: str, /, *, api: bool) -> Any: ...
