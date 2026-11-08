@@ -164,15 +164,13 @@ def test_pacepro_create_posts_split_times_in_milliseconds(
     client = create_client(hilly)
     argv = ["pacepro", "create", "--course", "111", "--goal-time", "0:16:40"]
 
-    code, _, _ = run(
-        [*argv, "--uphill-effort", "1.5", "--pacing-strategy", "-0.5"], client, capsys
-    )
+    code, _, _ = run(argv, client, capsys)
 
     assert code == 0
     splits = posted(client)["paceBandSplits"]
     assert [split["cumulativeTimeFromStart"] for split in splits] == [
-        334.303,
-        663.163,
+        340.031,
+        668.456,
         1000.0,
     ]
 
@@ -211,39 +209,12 @@ def test_pacepro_create_dry_run_prints_the_plan_and_saves_nothing(
     assert [name for name, *_ in client.calls] == ["get_course"]
 
 
-def test_pacepro_create_takes_name_split_and_sliders(
-    capsys: pytest.CaptureFixture[str],
-) -> None:
+def test_pacepro_create_takes_a_name(capsys: pytest.CaptureFixture[str]) -> None:
     client = create_client()
 
-    code, _, _ = run(
-        [
-            *CREATE,
-            "--name",
-            "Race Plan",
-            "--split",
-            "elevation",
-            "--pacing-strategy",
-            "-0.5",
-            "--uphill-effort",
-            "1.5",
-        ],
-        client,
-        capsys,
-    )
+    code, _, _ = run([*CREATE, "--name", "Race Plan"], client, capsys)
 
-    assert code == 0
-    summary = posted(client)["paceBandSummary"]
-    assert {
-        key: summary[key]
-        for key in ("name", "splitType", "pacingStrategy", "uphillEffort")
-    } == {
-        "name": "Race Plan",
-        "splitType": "ELEVATION",
-        "pacingStrategy": -0.5,
-        "uphillEffort": 1.5,
-    }
-    assert len(posted(client)["paceBandSplits"]) == 1
+    assert (code, posted(client)["paceBandSummary"]["name"]) == (0, "Race Plan")
 
 
 def test_pacepro_create_goal_pace_sets_the_goal_time_from_the_course_distance(
@@ -351,15 +322,15 @@ HELP = "Run 'garmin pacepro create --help'."
         ),
         *(
             (
-                [*CREATE, f"{option}={value}"],
-                f"Invalid {option} '{value}'. Use a number, like -0.5.",
+                [*CREATE, option, value],
+                f"Unknown option '{option}' for 'garmin pacepro create'. Run "
+                "'garmin pacepro create --help' for all options.",
             )
-            for option in ("--pacing-strategy", "--uphill-effort")
-            for value in ("nan", "inf", "-inf", "x")
-        ),
-        (
-            [*CREATE, "--split", "mile"],
-            "Invalid --split 'mile'. Use km or elevation.",
+            for option, value in (
+                ("--split", "km"),
+                ("--pacing-strategy", "-0.5"),
+                ("--uphill-effort", "1.5"),
+            )
         ),
     ],
 )

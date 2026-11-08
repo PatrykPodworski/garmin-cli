@@ -762,8 +762,7 @@ watch in Garmin Connect: Training & Planning → PacePro Pacing Strategies.
 
 ```sh
 garmin pacepro create --course 1234567 --goal-time 1:00:00 --dry-run
-garmin pacepro create --course 1234567 --goal-pace 5:45 --uphill-effort 1.5 \
-  --pacing-strategy -0.5 --split elevation --name "Hill race"
+garmin pacepro create --course 1234567 --goal-pace 5:45 --name "Hill race"
 ```
 
 Computes a PacePro plan from a saved course and saves it to Garmin Connect. stdout
@@ -775,35 +774,32 @@ plan. `--dry-run` prints the plan it would save and saves nothing.
   without a GPS track with elevation, exits 1 before anything is saved.
 - Give exactly one of `--goal-time H:MM:SS` and `--goal-pace M:SS` (per km).
   The goal pace is turned into a goal time over the course distance.
-- `--split` is `km` (default) or `elevation`. Miles are not supported.
-- `--pacing-strategy` and `--uphill-effort` take any finite number (default 0).
-  Garmin does not document their ranges, so garmin-cli checks only that the
-  value is a number. A negative value in exponent form needs `=`, like
-  `--pacing-strategy=-1e-3`; plain decimals like `-0.5` work without it.
 - `--name` names the plan (default: the course name).
+
+The plan has a split every km and the website's default sliders (uphill effort 0,
+pacing strategy 0). Elevation splits, miles and other slider values are not
+supported; make those plans on the website.
 
 The Garmin Connect website computes every split's target pace in the browser and
 sends the finished plan; Garmin's servers only store it. garmin-cli computes the
 splits with its own algorithm (`src/garmin_cli/pacing.py`, see
-[ADR 0001](docs/adr/0001-pacepro-clean-room-algorithm.md)), tuned against the
-website's plan for the same inputs. So far one website plan has been compared:
-km splits with one setting of each slider, where every split's pace is within
-1 s/km of the website's. Other slider values and elevation splits have not been
-compared, so plans made with them may differ more. The model:
+[ADR 0001](docs/adr/0001-pacepro-clean-room-algorithm.md)), tuned against plans
+saved on the website with the default sliders: ten plans on courses from 5 to
+55 km, flat to hilly, with grades per km from −11 % to +13 %. On nine of them every
+split is within 3 s/km of the website's, and on the tenth within 3.4 s/km. The
+model:
 
-- Each split's speed is the goal speed times
-  `1 − uphill_effort × grade + 0.09 × pacing_strategy × (x − ½)`, where grade is
-  the split's elevation change over its length and x the split's middle as a share
-  of the course. All splits are then scaled to finish in the goal time. A
-  negative pacing strategy slows the second half; a positive uphill effort slows
-  the climbs and speeds up the descents. No split goes below a fifth of the goal
-  speed.
-- km splits end at every km; a last split shorter than a km runs at the goal pace.
-- Elevation splits start where the course's elevation profile, simplified to
-  3 m, changes grade; a split shorter than 1700 m joins the neighbour with the
-  closer grade. No website plan with elevation splits has been compared yet.
+- Each split runs at the goal pace times
+  `1 + 1.68 × grade + 2.5 × grade²` on a climb and
+  `1 + 1.68 × grade + 10 × grade²` on a descent, where grade is the split's
+  elevation change over its length. All splits, the last one included, are then
+  scaled to finish in the goal time.
+- Near flat, 1 % of grade makes a split about 1.7 % slower uphill or faster
+  downhill. Climbs cost a little more as they steepen. On descents the gain peaks
+  at about −8 % (7 % faster than flat) and is gone by about −17 %.
 - The splits end at the track's great-circle length, which is a little shorter
-  than the course distance Garmin shows, as on the website.
+  than the course distance Garmin shows, as on the website. Each split's grade is
+  measured along that length.
 
 ### device list
 
