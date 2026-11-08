@@ -147,6 +147,36 @@ def test_pacepro_create_posts_the_plan_and_prints_the_stored_one(
     assert client.calls[0] == ("get_course", (111,), {})
 
 
+def test_pacepro_create_posts_split_times_in_milliseconds(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    # Garmin rejects a cumulativeTimeFromStart with more than 3 decimals.
+    hilly = {
+        **COURSE,
+        "distanceMeter": 3000.0,
+        "geoPoints": [
+            point(0.0, 100.0),
+            point(1000.0, 112.0),
+            point(2000.0, 103.0),
+            point(3000.0, 100.0),
+        ],
+    }
+    client = create_client(hilly)
+    argv = ["pacepro", "create", "--course", "111", "--goal-time", "0:16:40"]
+
+    code, _, _ = run(
+        [*argv, "--uphill-effort", "1.5", "--pacing-strategy", "-0.5"], client, capsys
+    )
+
+    assert code == 0
+    splits = posted(client)["paceBandSplits"]
+    assert [split["cumulativeTimeFromStart"] for split in splits] == [
+        334.303,
+        663.163,
+        1000.0,
+    ]
+
+
 def test_pacepro_create_prints_what_garmin_stored(
     capsys: pytest.CaptureFixture[str],
 ) -> None:

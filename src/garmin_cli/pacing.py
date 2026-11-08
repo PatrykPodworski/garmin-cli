@@ -147,7 +147,8 @@ def compute_splits(
                 "splitDistance": end - start,
                 "splitAvgSpeed": speed,
                 "cumulativeDistanceFromStart": end,
-                "cumulativeTimeFromStart": elapsed,
+                # Garmin rejects split times with more than 3 decimals.
+                "cumulativeTimeFromStart": round(elapsed, 3),
                 "startPoint": first,
                 "endPoint": last,
             }
