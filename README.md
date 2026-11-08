@@ -2,7 +2,7 @@
 
 `garmin` reads your Garmin Connect data and prints it as JSON. It can also log a
 weigh-in, adjust a night's sleep times, manage workouts, save GPX files as
-courses, send a course to a watch, and read, create, edit and delete PacePro plans. Scripts, agents and people at a terminal can use it. It wraps
+courses, send a course to a watch, and read, create, edit, delete and send PacePro plans. Scripts, agents and people at a terminal can use it. It wraps
 [python-garminconnect](https://github.com/cyberjunky/python-garminconnect).
 
 ## Install
@@ -752,10 +752,11 @@ its splits in order: each split's length, target pace, elevation change from sta
 to end, and the distance and time from the start at its end. An unknown ID exits 1.
 
 garminconnect 0.3.20 has one PacePro call, `get_pace_bands()`, and no call to
-get, create, edit, delete or send a plan. `pacepro view`, `pacepro create`,
-`pacepro edit` and `pacepro delete` send the website's own requests through the
-library's HTTP client instead. Send plans to the watch in Garmin Connect:
-Training & Planning → PacePro Pacing Strategies.
+create, edit, delete or send a plan. `pacepro view`, `pacepro create`,
+`pacepro edit`, `pacepro delete` and `pacepro send` send the Garmin Connect
+website's own requests through the library's HTTP client. Change a plan's split
+type, sliders or single paces in Garmin Connect: Training & Planning → PacePro
+Pacing Strategies.
 
 ### pacepro create
 
@@ -839,6 +840,43 @@ the `garmin pacepro view` message and deletes nothing. After the deletion, stdou
 `garmin: Would delete PacePro plan "Hill repeats 10k".` A plan without a name shows
 as `PacePro plan 7654321`.
 
+### pacepro send
+
+```sh
+garmin device list                         # find the watch's id
+garmin pacepro send 7654321 --device 3333333333
+```
+
+```json
+{
+  "plan_id": 7654321,
+  "plan": "Hill repeats 10k",
+  "device_id": 3333333333,
+  "device": "My watch"
+}
+```
+
+Queues a PacePro plan for one device, like *Send to Device* in Garmin Connect. The
+watch downloads it on its next sync with Garmin Connect. A success means Garmin
+accepted the plan, not that it is on the watch yet.
+
+The plan ID comes from `garmin pacepro list`, and `--device` takes an `id` from
+`garmin device list`; there is no default device. The command fetches the plan and
+the account's devices first and exits 1, sending nothing, when either ID is
+unknown. stderr is
+`garmin: Queued PacePro plan "Hill repeats 10k" (ID 7654321) for device "My watch" (ID 3333333333). The watch gets it on its next sync.`
+A plan without a name shows as `PacePro plan 7654321`, and a key with no value is
+left out of stdout. `--raw` prints Garmin's answer to the send, which is `{}`
+because Garmin answers with no body. Running it again queues the plan again.
+
+The command sends only the plan. The watch runs a PacePro plan with its course, so
+the course has to reach the watch too: if it does not arrive with the plan, send it
+with `garmin course send` and the plan's `course_id`.
+
+garminconnect has no call for this, so garmin-cli sends the website's own request
+through the library's HTTP client. If Garmin changes it, the command fails with
+`Garmin Connect rejected the request`.
+
 ### device list
 
 ```sh
@@ -856,7 +894,7 @@ garmin device list
 ```
 
 The devices registered to the Garmin Connect account. `id` is what
-`garmin course send --device` takes, `name` is the device's name in Garmin Connect,
+`garmin course send --device` and `garmin pacepro send --device` take, `name` is the device's name in Garmin Connect,
 and `model` its product name. A key Garmin has no value for is left out. No
 devices prints `[]`.
 
@@ -864,7 +902,7 @@ devices prints `[]`.
 
 `stats`, `recovery view`, `sleep`, `weight`, `bp`, `activities`, `activity`,
 `workouts`, `workout`, `workout calendar`, `course list`, `course view`,
-`course send` and `device list` accept `--raw`. It
+`course send`, `pacepro send` and `device list` accept `--raw`. It
 prints the full Garmin response instead of the summary. `activity --raw` combines
 three responses under `summary`, `splits` and `hr_zones`, and `recovery view --raw`
 under `training_readiness`, `training_status` and `hrv`. `workout calendar --raw`
@@ -900,6 +938,9 @@ Messages for status 1:
 | `course send --device <id>` device not found | `garmin: No device with ID <id>. Run 'garmin device list' to list IDs.` |
 | `pacepro create --course <id>` course not found | `garmin: No course with ID <id>. Run 'garmin course list' to list IDs.` |
 | `pacepro create` course without a track | `garmin: Course <id> has no track with elevation, which PacePro needs. Pick another course from 'garmin course list'.` |
+| `pacepro edit <id>` plan not found | `garmin: No PacePro plan with ID <id>. Run 'garmin pacepro list' to list IDs.` |
+| `pacepro send <id>` plan not found | `garmin: No PacePro plan with ID <id>. Run 'garmin pacepro list' to list IDs.` |
+| `pacepro send --device <id>` device not found | `garmin: No device with ID <id>. Run 'garmin device list' to list IDs.` |
 | `course create` import has no track | `garmin: Garmin found no track in '<file>', so no course was saved. Check that the file imports in Garmin Connect's course import.` |
 | `workout unschedule <id>` not found | `garmin: No calendar entry with schedule ID <id>. Run 'garmin workout calendar' to list schedule IDs.` |
 | Rate limit | `garmin: Garmin is rate-limiting requests from this machine. Wait a few minutes and try again.` |

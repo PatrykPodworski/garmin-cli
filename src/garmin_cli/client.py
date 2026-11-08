@@ -15,7 +15,7 @@ class HttpClient(Protocol):
         _path: str,
         /,
         *,
-        json: list[dict[str, Any]] | dict[str, Any],
+        json: list[dict[str, Any]] | dict[str, Any] | None = None,
         api: bool,
     ) -> Any: ...
 
