@@ -13,11 +13,15 @@ class HttpClient(Protocol):
         self, _domain: str, _path: str, /, *, json: list[dict[str, Any]], api: bool
     ) -> Any: ...
 
+    def delete(self, _domain: str, _path: str, /, *, api: bool) -> Any: ...
+
 
 class GarminClient(Protocol):
     """The `garminconnect.Garmin` methods the subcommands call."""
 
     client: HttpClient
+
+    def connectapi(self, _path: str, /) -> Any: ...
 
     def get_stats(self, _cdate: str, /) -> dict[str, Any]: ...
 

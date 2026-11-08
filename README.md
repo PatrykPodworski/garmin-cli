@@ -2,7 +2,7 @@
 
 `garmin` reads your Garmin Connect data and prints it as JSON. It can also log a
 weigh-in, adjust a night's sleep times, manage workouts, save GPX files as
-courses, send a course to a watch and read PacePro plans. Scripts, agents and people at a terminal can use it. It wraps
+courses, send a course to a watch, and read and delete PacePro plans. Scripts, agents and people at a terminal can use it. It wraps
 [python-garminconnect](https://github.com/cyberjunky/python-garminconnect).
 
 ## Install
@@ -750,13 +750,27 @@ garmin pacepro view 7654321
 One plan by the `id` from `garmin pacepro list`, with the `pacepro list` keys and
 its splits in order: each split's length, target pace, elevation change from start
 to end, and the distance and time from the start at its end. An unknown ID exits 1.
-Garmin has no call for one plan, so the command reads the whole list and picks the
-plan from it.
 
-PacePro support is read-only. garminconnect 0.3.20 has one PacePro call,
-`get_pace_bands()`, and no call to create, edit, delete or send a plan. Make plans
-from a course and send them to the watch in Garmin Connect: Training & Planning →
-PacePro Pacing Strategies.
+### pacepro delete
+
+```sh
+garmin pacepro delete 7654321 --dry-run
+garmin pacepro delete 7654321
+```
+
+Deletes a PacePro plan from Garmin Connect without asking. Take the ID from
+`garmin pacepro list`. The command first reads the plan, so an unknown ID fails with
+the `garmin pacepro view` message and deletes nothing. After the deletion, stdout is
+`{"deleted": 7654321}` and stderr `garmin: Deleted PacePro plan "Hill repeats 10k".`
+`--dry-run` only reads the plan: stdout `{"would_delete": 7654321}`, stderr
+`garmin: Would delete PacePro plan "Hill repeats 10k".` A plan without a name shows
+as `PacePro plan 7654321`.
+
+garminconnect 0.3.20 has one PacePro call, `get_pace_bands()`. `pacepro view` and
+`pacepro delete` send the website's own requests through the library's HTTP client
+instead. There is no command to create, edit or send a plan: make plans from a
+course and send them to the watch in Garmin Connect: Training & Planning → PacePro
+Pacing Strategies.
 
 ### device list
 

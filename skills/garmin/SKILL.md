@@ -1,15 +1,16 @@
 ---
 name: garmin
-description: Use when the user asks about their Garmin data — workouts (runs, rides), sleep or sleep score, weight, body fat, blood pressure, calories burned, resting heart rate, body battery, stress, training readiness, training status, training load, recovery time or HRV status — or asks to adjust a night's sleep times, log a weigh-in, add a manual activity, delete an activity, find a workout in their workout library, create or change a structured running workout, create a strength workout with exercises, sets, reps and weights, look up a strength exercise name, delete a workout, put a workout on their calendar, take it off or see what is scheduled, save a GPX file as a course, list or look up their courses, send a course to their watch, list or look up their PacePro pacing plans, or list their devices.
+description: Use when the user asks about their Garmin data — workouts (runs, rides), sleep or sleep score, weight, body fat, blood pressure, calories burned, resting heart rate, body battery, stress, training readiness, training status, training load, recovery time or HRV status — or asks to adjust a night's sleep times, log a weigh-in, add a manual activity, delete an activity, find a workout in their workout library, create or change a structured running workout, create a strength workout with exercises, sets, reps and weights, look up a strength exercise name, delete a workout, put a workout on their calendar, take it off or see what is scheduled, save a GPX file as a course, list or look up their courses, send a course to their watch, list, look up or delete their PacePro pacing plans, or list their devices.
 ---
 
 # garmin
 
 `garmin` reads the user's Garmin Connect data and prints JSON. Run it with Bash.
-Eleven commands change data: `garmin weight add`, `garmin sleep set`,
+Twelve commands change data: `garmin weight add`, `garmin sleep set`,
 `garmin activity add`, `garmin activity delete`, `garmin workout add`,
 `garmin workout edit`, `garmin workout delete`, `garmin workout schedule`,
-`garmin workout unschedule`, `garmin course create` and `garmin course send`.
+`garmin workout unschedule`, `garmin course create`, `garmin course send` and
+`garmin pacepro delete`.
 
 ## Login
 
@@ -51,6 +52,7 @@ garmin course view ID                   # one course: distance, elevation, type,
 garmin course send ID --device DEVICE_ID  # queue a course for a watch; DEVICE_ID from `device list`
 garmin pacepro list --limit 50          # PacePro plans: course, split mode, goal time and pace; default limit 20
 garmin pacepro view ID                  # one PacePro plan with each split's target pace; ID from `pacepro list`
+garmin pacepro delete ID [--dry-run]    # delete a PacePro plan; ID from `pacepro list`
 garmin device list                      # devices on the account: id, name, model
 ```
 
@@ -102,9 +104,13 @@ garmin device list                      # devices on the account: id, name, mode
   matches, or the user named none, ask. Success means Garmin queued the course,
   not that it is on the watch: tell the user it arrives on the watch's next sync.
   Each run queues it again, so do not retry after success.
-- PacePro is read-only. When the user asks to create, change, delete or send a
-  PacePro plan, say the CLI cannot, and point them to Garmin Connect: Training &
-  Planning → PacePro Pacing Strategies. Do not try another command or a raw request.
+- `garmin pacepro delete` deletes without asking and cannot be undone. Run it only
+  for a plan the user asked you to delete. When the user names the plan instead of
+  giving its ID, look up the ID with `garmin pacepro list`, run
+  `garmin pacepro delete ID --dry-run`, and confirm the match with the user first.
+- When the user asks to create, change or send a PacePro plan, say the CLI cannot,
+  and point them to Garmin Connect: Training & Planning → PacePro Pacing Strategies.
+  Do not try another command or a raw request.
   Times are seconds and paces seconds per km; convert them to `h:mm:ss` and
   `m:ss /km` for the user.
 - Summary floats are rounded to two decimals. Quote them as printed.
