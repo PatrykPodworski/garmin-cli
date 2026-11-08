@@ -29,6 +29,7 @@ from garmin_cli import (
     exercises,
     health,
     pacepro,
+    pacepro_create,
     pacepro_delete,
     recovery,
     sleep,
@@ -46,6 +47,7 @@ from garmin_cli.client import Connect
 from garmin_cli.errors import GarminCliError
 
 REQUIRED = "the following arguments are required: "
+CONFLICT = "not allowed with argument "
 ISSUES = "https://github.com/PatrykPodworski/garmin-cli/issues"
 RATE_LIMITED = (
     "Garmin is rate-limiting requests from this machine. "
@@ -120,10 +122,14 @@ class CliParser(argparse.ArgumentParser):
                     f"then '{self.prog} <id>'."
                 )
             return f"Missing {name} for '{self.prog}'. Run '{self.prog} --help'."
-        # ponytail: only `garmin sleep` and `garmin sleep set` have mutually
-        # exclusive arguments, the same pair; name them from the message once
-        # another pair appears.
-        if detail.startswith("not allowed with argument "):
+        if detail.startswith(CONFLICT):
+            other = detail.removeprefix(CONFLICT)
+            # `garmin sleep` and `garmin sleep set` explain their pair.
+            if "--night-of" not in (option, other):
+                return (
+                    f"Give either {other} or {option}, not both. "
+                    f"Run '{self.prog} --help'."
+                )
             return (
                 f"Give either a date or --night-of, not both. Use '{self.prog} DATE' "
                 f"for the wake-up date or '{self.prog} --night-of DATE' for the "
@@ -227,7 +233,9 @@ def build_parser() -> CliParser:
     course_commands = courses.register(subparsers)
     course_create.register(course_commands)
     course_send.register(course_commands)
-    pacepro_delete.register(pacepro.register(subparsers))
+    pacepro_commands = pacepro.register(subparsers)
+    pacepro_create.register(pacepro_commands)
+    pacepro_delete.register(pacepro_commands)
     devices.register(subparsers)
     # The default names every choice, the two-word commands like `sleep set` too.
     subparsers.metavar = f"{{{','.join(parser.listed)}}}"

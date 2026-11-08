@@ -282,5 +282,5 @@ def test_pacepro_without_command_exits_2(capsys: pytest.CaptureFixture[str]) -> 
         2,
         "",
         "garmin: No command given. Run 'garmin pacepro <command>', one of: list, "
-        "view, delete.\n",
+        "view, create, delete.\n",
     )
