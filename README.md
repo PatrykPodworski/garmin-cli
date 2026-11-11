@@ -303,7 +303,9 @@ garmin activity 1234567890
 
 One activity by the `id` from `garmin activities`. It has the same keys as an
 `activities` item, plus `laps` (the same keys per lap, without `type`) and
-`hr_zones` (seconds spent in each zone and the zone's lower bound in bpm).
+`hr_zones` (seconds spent in each zone and the zone's lower bound in bpm). An ID that
+is not a whole number of 1 or more exits with status 2 before logging in:
+`garmin: Invalid activity ID 'abc'. Run 'garmin activities' to list IDs.`
 
 ### activity add
 

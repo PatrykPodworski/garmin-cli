@@ -40,6 +40,18 @@ def positive_int(value: str) -> int:
     return number
 
 
+def activity_id(value: str) -> str:
+    try:
+        number = int(value)
+    except ValueError:
+        number = 0
+    if number < 1:
+        raise argparse.ArgumentTypeError(
+            f"Invalid activity ID '{value}'. Run 'garmin activities' to list IDs."
+        )
+    return str(number)
+
+
 def require_type(
     key: str, keys: Collection[str], fail: Callable[[str], NoReturn]
 ) -> None:
@@ -144,7 +156,9 @@ def register(subparsers: "argparse._SubParsersAction[argparse.ArgumentParser]") 
         "and 'garmin activity delete' deletes one. Run 'garmin activity add --help' "
         "or 'garmin activity delete --help' for their options.",
     )
-    activity_parser.add_argument("id")
+    activity_parser.add_argument(
+        "id", type=activity_id, help="activity ID from 'garmin activities'"
+    )
     activity_parser.add_argument(
         "--raw", action="store_true", help="print the full Garmin response"
     )
