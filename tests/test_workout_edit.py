@@ -6,6 +6,7 @@ from typing import Any
 import pytest
 from conftest import FakeClient
 from garminconnect import GarminConnectConnectionError, GarminConnectNotFoundError
+from test_strength import PLAN, UPLOADED
 from test_workout_add import WORKOUT, run, write
 from test_workouts import DETAIL, SUMMARY
 
@@ -164,4 +165,60 @@ def test_workout_edit_missing_file_option_exits_2(
         "garmin: Missing --file for 'garmin workout edit'. Run 'garmin workout edit "
         "--help'.\n",
     )
+    assert client.calls == []
+
+
+def test_workout_edit_strength_rebuilds_the_workout_from_the_short_format(
+    capsys: pytest.CaptureFixture[str], tmp_path: Path
+) -> None:
+    client = edit_client()
+    path = write(tmp_path, json.dumps(PLAN))
+
+    code, out, err = run(
+        ["workout", "edit", "501", "--strength", "--file", path], client, capsys
+    )
+
+    assert (code, json.loads(out), err) == (
+        0,
+        SHOWN,
+        'garmin: Updated workout "Upper A" (ID 501).\n',
+    )
+    assert client.calls == [
+        ("get_workout_by_id", (501,), {}),
+        ("update_workout", (501, UPLOADED), {}),
+        ("get_workout_by_id", (501,), {}),
+    ]
+
+
+def test_workout_edit_strength_invalid_file_exits_2_without_calls(
+    capsys: pytest.CaptureFixture[str], tmp_path: Path
+) -> None:
+    client = edit_client()
+    path = write(tmp_path, json.dumps({"name": "Upper A"}))
+
+    result = run(
+        ["workout", "edit", "501", "--strength", "--file", path], client, capsys
+    )
+
+    assert result == (
+        2,
+        "",
+        f"garmin: The workout in '{path}' has no blocks. Add \"blocks\", a list of "
+        '{"sets": N, "steps": [...]}.\n',
+    )
+    assert client.calls == []
+
+
+def test_workout_edit_strength_rejects_garmin_json(
+    capsys: pytest.CaptureFixture[str], tmp_path: Path
+) -> None:
+    client = edit_client()
+    path = write(tmp_path, json.dumps(WORKOUT))
+
+    code, out, err = run(
+        ["workout", "edit", "501", "--strength", "--file", path], client, capsys
+    )
+
+    assert (code, out) == (2, "")
+    assert err.startswith(f"garmin: The workout in '{path}' has an unknown key")
     assert client.calls == []

@@ -3,12 +3,12 @@ import sys
 from typing import Any
 
 from garmin_cli.client import Connect
-from garmin_cli.workout_add import read_workout
+from garmin_cli.workout_add import read_strength, read_workout
 from garmin_cli.workouts import describe, fetch_workout, workout_id
 
 
 def edit_workout(args: argparse.Namespace, connect: Connect) -> Any:
-    workout = read_workout(args)
+    workout = read_strength(args) if args.strength else read_workout(args)
     client = connect()
     fetch_workout(client, args.id)
     client.update_workout(args.id, workout)
@@ -26,7 +26,8 @@ def register(subparsers: "argparse._SubParsersAction[argparse.ArgumentParser]") 
         "workout edit",
         description="Replaces a workout in the Garmin Connect workout library with "
         "the workout in Garmin's own JSON format, the shape 'garmin workout ID --raw' "
-        "prints. The workout keeps its ID and its calendar entries.",
+        "prints. --strength reads the short strength workout file of 'garmin workout "
+        "add --strength' instead. The workout keeps its ID and its calendar entries.",
     )
     edit_parser.add_argument(
         "id", type=workout_id, help="workout ID from 'garmin workouts'"
@@ -35,5 +36,11 @@ def register(subparsers: "argparse._SubParsersAction[argparse.ArgumentParser]") 
         "--file",
         required=True,
         help="workout JSON file, or - to read stdin",
+    )
+    edit_parser.add_argument(
+        "--strength",
+        action="store_true",
+        help="read --file as a strength workout in the 'garmin workout add "
+        "--strength' format",
     )
     edit_parser.set_defaults(run=edit_workout, parser=edit_parser)
