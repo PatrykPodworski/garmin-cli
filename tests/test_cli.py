@@ -1,3 +1,4 @@
+import io
 import sys
 from typing import Any
 
@@ -215,6 +216,34 @@ def test_prints_json_indented_by_2(capsys: pytest.CaptureFixture[str]) -> None:
 
     assert main(["stats", "--raw"], connect=lambda: client) == 0
     assert capsys.readouterr().out == '{\n  "totalSteps": [\n    1\n  ]\n}\n'
+
+
+@pytest.mark.parametrize(
+    ("argv", "key"),
+    [(["activities"], "name"), (["activities", "--raw"], "activityName")],
+)
+def test_prints_non_ascii_text_as_is(
+    argv: list[str], key: str, capsys: pytest.CaptureFixture[str]
+) -> None:
+    client = FakeClient(get_activities=[{"activityName": "Bieg w Łodzi"}])
+
+    assert main(argv, connect=lambda: client) == 0
+    assert capsys.readouterr().out == f'[\n  {{\n    "{key}": "Bieg w Łodzi"\n  }}\n]\n'
+
+
+@pytest.mark.parametrize("encoding", ["cp1252", "ascii"])
+def test_escapes_text_the_stdout_cannot_encode(
+    encoding: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    stdout = io.TextIOWrapper(io.BytesIO(), encoding=encoding, newline="\n")
+    monkeypatch.setattr(sys, "stdout", stdout)
+    client = FakeClient(get_activities=[{"activityName": "Bieg w Łodzi"}])
+
+    assert main(["activities"], connect=lambda: client) == 0
+    stdout.flush()
+    assert stdout.buffer.getvalue() == (
+        b'[\n  {\n    "name": "Bieg w \\u0141odzi"\n  }\n]\n'
+    )
 
 
 @pytest.mark.parametrize(
