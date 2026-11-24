@@ -16,6 +16,7 @@ def stats(args: argparse.Namespace, connect: Connect) -> Any:
             f"No daily summary for {day} yet.",
             "Sync your watch with Garmin Connect, then try again.",
         )
+    stress = response.get("averageStressLevel")
     return {
         "date": day,
         "total_kcal": response["totalKilocalories"],
@@ -24,7 +25,8 @@ def stats(args: argparse.Namespace, connect: Connect) -> Any:
         "resting_hr": response.get("restingHeartRate"),
         "body_battery_high": response.get("bodyBatteryHighestValue"),
         "body_battery_low": response.get("bodyBatteryLowestValue"),
-        "avg_stress": response.get("averageStressLevel"),
+        # Garmin reports -1 when the day has too little data for a 1-100 score.
+        "avg_stress": stress if stress is not None and stress >= 1 else None,
     }
 
 
