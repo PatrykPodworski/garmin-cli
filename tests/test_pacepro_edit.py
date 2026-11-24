@@ -190,6 +190,24 @@ def test_pacepro_edit_goal_saves_other_settings_as_a_v1_plan(
     assert put_body(client)["paceBandSummary"] == {**SUMMARY, "name": "Old Name"}
 
 
+@pytest.mark.parametrize(
+    "summary",
+    [
+        {**STORED_SUMMARY, "name": None},
+        {key: value for key, value in STORED_SUMMARY.items() if key != "name"},
+    ],
+)
+def test_pacepro_edit_goal_of_a_plan_without_name_shows_its_id(
+    summary: dict[str, Any], capsys: pytest.CaptureFixture[str]
+) -> None:
+    client = edit_client({**STORED, "paceBandSummary": summary})
+
+    result = run(["pacepro", "edit", "501", *NEW_GOAL], client, capsys)
+
+    assert result == (0, SHOWN, "garmin: Updated PacePro plan 501.\n")
+    assert put_body(client)["paceBandSummary"] == {**SUMMARY, "name": None}
+
+
 def test_pacepro_edit_unknown_id_exits_1(capsys: pytest.CaptureFixture[str]) -> None:
     client = edit_client(GarminConnectNotFoundError("404"))
 
@@ -269,6 +287,13 @@ HELP = "Run 'garmin pacepro edit --help'."
         (
             ["pacepro", "edit", "x", "--name", "New Name"],
             f"Invalid PacePro plan ID 'x'. {LIST_IDS}",
+        ),
+        *(
+            (
+                ["pacepro", "edit", "501", "--name", value],
+                f"Invalid --name '{value}'. Give a name that is not blank.",
+            )
+            for value in ("", "  ")
         ),
     ],
 )

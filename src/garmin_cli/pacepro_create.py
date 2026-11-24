@@ -3,6 +3,7 @@ import re
 import sys
 from typing import Any
 
+from garmin_cli.activities import nonblank_name
 from garmin_cli.client import Connect
 from garmin_cli.courses import course_id, fetch_course
 from garmin_cli.errors import GarminCliError
@@ -105,7 +106,9 @@ def register(commands: "argparse._SubParsersAction[argparse.ArgumentParser]") ->
     goal = create_parser.add_mutually_exclusive_group(required=True)
     goal.add_argument("--goal-time", type=goal_time, help="finish time, H:MM:SS")
     goal.add_argument("--goal-pace", type=goal_pace, help="average pace per km, M:SS")
-    create_parser.add_argument("--name", help="plan name (default: the course name)")
+    create_parser.add_argument(
+        "--name", type=nonblank_name, help="plan name (default: the course name)"
+    )
     create_parser.add_argument(
         "--dry-run", action="store_true", help="print the plan, save nothing"
     )

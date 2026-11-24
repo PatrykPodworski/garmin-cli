@@ -2,6 +2,7 @@ import argparse
 import sys
 from typing import Any
 
+from garmin_cli.activities import nonblank_name
 from garmin_cli.client import Connect
 from garmin_cli.courses import fetch_course
 from garmin_cli.pacepro import fetch_plan, plan_id, plan_path, show
@@ -37,7 +38,7 @@ def edit_plan(args: argparse.Namespace, connect: Connect) -> Any:
     client = connect()
     stored = fetch_plan(client, args.id)
     summary = stored["paceBandSummary"]
-    name = args.name or summary["name"]
+    name = args.name or summary.get("name")
     note = ""
     if args.goal_time or args.goal_pace:
         course = fetch_course(client, summary["courseId"])
@@ -57,7 +58,8 @@ def edit_plan(args: argparse.Namespace, connect: Connect) -> Any:
         }
     # garminconnect has no call to update a plan; this is the website's request.
     saved = client.client.put("connectapi", plan_path(args.id), json=plan, api=True)
-    print(f'garmin: Updated PacePro plan "{name}"{note}.', file=sys.stderr)
+    what = f'PacePro plan "{name}"' if name is not None else f"PacePro plan {args.id}"
+    print(f"garmin: Updated {what}{note}.", file=sys.stderr)
     return show(saved)
 
 
@@ -74,7 +76,7 @@ def register(commands: "argparse._SubParsersAction[argparse.ArgumentParser]") ->
     edit_parser.add_argument(
         "id", type=plan_id, help="plan ID from 'garmin pacepro list'"
     )
-    edit_parser.add_argument("--name", help="new plan name")
+    edit_parser.add_argument("--name", type=nonblank_name, help="new plan name")
     goal = edit_parser.add_mutually_exclusive_group()
     goal.add_argument("--goal-time", type=goal_time, help="finish time, H:MM:SS")
     goal.add_argument("--goal-pace", type=goal_pace, help="average pace per km, M:SS")
