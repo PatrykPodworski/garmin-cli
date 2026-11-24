@@ -41,11 +41,13 @@ CI (`.github/workflows/ci.yml`) runs these on every pull request and push to `ma
 - `uv run ruff format --check`
 - `uv run vulture`
 - `uv run deptry src`
-- `uv run mutmut run` (score ≥ 80%, see below)
 
 ## Mutation testing
 
-The CI `check` job runs `mutmut` on every pull request and push to `main` and fails
-when the score (killed / (killed + survived + timeout + suspicious)) falls below 80%.
+Pull requests do not run `mutmut`. `.github/workflows/mutation.yml` runs it on `main`
+once a night, and only when `main` changed since its last completed run. The run fails
+when the score (killed / (killed + survived + timeout + suspicious)) falls below 80% or
+a step errors. A failed run opens an issue labeled `mutmut-nightly`, or comments on the
+open one.
 Run it locally with `uv run mutmut run`, then `uv run mutmut results` lists the
 surviving mutants and `uv run mutmut show <name>` shows one.
