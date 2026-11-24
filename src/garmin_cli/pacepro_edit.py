@@ -5,7 +5,12 @@ from typing import Any
 from garmin_cli.client import Connect
 from garmin_cli.courses import fetch_course
 from garmin_cli.pacepro import fetch_plan, plan_id, plan_path, show
-from garmin_cli.pacepro_create import elevation_track, goal_pace, goal_time
+from garmin_cli.pacepro_create import (
+    elevation_track,
+    goal_pace,
+    goal_seconds,
+    goal_time,
+)
 from garmin_cli.pacing import km_plan
 
 # Keys Garmin adds to a stored plan; the website leaves them out of an update.
@@ -38,7 +43,7 @@ def edit_plan(args: argparse.Namespace, connect: Connect) -> Any:
         course = fetch_course(client, summary["courseId"])
         points = elevation_track(course, summary["courseId"])
         distance = course["distanceMeter"]
-        seconds = args.goal_time or round(args.goal_pace * distance / 1000)
+        seconds = goal_seconds(args, distance, summary["courseId"])
         plan = km_plan(summary["courseId"], name, seconds, distance, points)
         new = plan["paceBandSummary"]
         if any(summary.get(key) != new[key] for key in V1_KEYS):

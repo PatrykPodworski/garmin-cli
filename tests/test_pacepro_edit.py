@@ -216,6 +216,34 @@ def test_pacepro_edit_goal_on_a_course_without_elevation_exits_1(
     assert [name for name, *_ in client.calls] == ["connectapi", "get_course"]
 
 
+def test_pacepro_edit_goal_on_a_zero_length_track_exits_1(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    course = {**COURSE, "geoPoints": [point(0.0), point(0.0)]}
+    client = edit_client(course=course)
+
+    code, _, err = run(["pacepro", "edit", "501", *NEW_GOAL], client, capsys)
+
+    assert (code, err.startswith("garmin: Course 111 has no track")) == (1, True)
+    assert [name for name, *_ in client.calls] == ["connectapi", "get_course"]
+
+
+def test_pacepro_edit_goal_pace_under_1_s_on_the_course_exits_1(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    client = edit_client(course={**COURSE, "distanceMeter": 4.0})
+
+    result = run(["pacepro", "edit", "501", "--goal-pace", "2:00"], client, capsys)
+
+    assert result == (
+        1,
+        "",
+        "garmin: Course 111 is too short for a goal pace of 2:00 per km: the goal "
+        "time rounds to 0 s. Give a slower --goal-pace or a --goal-time.\n",
+    )
+    assert [name for name, *_ in client.calls] == ["connectapi", "get_course"]
+
+
 HELP = "Run 'garmin pacepro edit --help'."
 
 
