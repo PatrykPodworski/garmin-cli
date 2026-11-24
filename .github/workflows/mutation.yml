@@ -7,12 +7,16 @@ on:
 
 permissions:
   contents: read
-  actions: read
-  issues: write
+
+concurrency:
+  group: mutation
+  cancel-in-progress: false
 
 jobs:
   changes:
     runs-on: ubuntu-latest
+    permissions:
+      actions: read
     outputs:
       run: ${{ steps.check.outputs.run }}
     steps:
@@ -25,7 +29,8 @@ jobs:
             exit 0
           fi
           last=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow mutation.yml \
-            --branch main --status completed --limit 1 --json headSha -q '.[0].headSha')
+            --branch main --status completed --limit 20 --json headSha,conclusion \
+            -q '[.[] | select(.conclusion != "cancelled")][0].headSha')
           if [ "$last" = "$GITHUB_SHA" ]; then
             echo "main has no new commits since the last run ($last), skipping"
             echo "run=false" >> "$GITHUB_OUTPUT"
@@ -73,6 +78,8 @@ jobs:
     needs: [changes, mutmut]
     if: failure()
     runs-on: ubuntu-latest
+    permissions:
+      issues: write
     steps:
       - env:
           GH_TOKEN: ${{ github.token }}
