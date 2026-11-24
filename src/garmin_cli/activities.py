@@ -40,6 +40,14 @@ def positive_int(value: str) -> int:
     return number
 
 
+def nonblank_name(value: str) -> str:
+    if not value.strip():
+        raise argparse.ArgumentTypeError(
+            f"Invalid --name '{value}'. Give a name that is not blank."
+        )
+    return value.strip()
+
+
 def activity_id(value: str) -> str:
     try:
         number = int(value)

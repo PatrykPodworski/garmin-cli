@@ -322,6 +322,13 @@ HELP = "Run 'garmin pacepro create --help'."
         ),
         *(
             (
+                [*CREATE, "--name", value],
+                f"Invalid --name '{value}'. Give a name that is not blank.",
+            )
+            for value in ("", "  ")
+        ),
+        *(
+            (
                 [*CREATE, option, value],
                 f"Unknown option '{option}' for 'garmin pacepro create'. Run "
                 "'garmin pacepro create --help' for all options.",

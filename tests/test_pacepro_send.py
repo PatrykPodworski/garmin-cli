@@ -163,6 +163,18 @@ def test_pacepro_send_invalid_device_exits_2(
     assert client.calls == []
 
 
+def test_pacepro_send_missing_id_exits_2(capsys: pytest.CaptureFixture[str]) -> None:
+    client = send_client()
+
+    assert run(["pacepro", "send", "--device", "3333"], client, capsys) == (
+        2,
+        "",
+        "garmin: Missing pacepro ID. Run 'garmin pacepro list' to list IDs, then "
+        "'garmin pacepro send <id>'.\n",
+    )
+    assert client.calls == []
+
+
 def test_pacepro_send_without_device_exits_2(
     capsys: pytest.CaptureFixture[str],
 ) -> None:

@@ -138,8 +138,8 @@ garmin device list                      # devices on the account: id, name, mode
   paces. When the user asks for that, point them to Garmin Connect: Training &
   Planning → PacePro Pacing Strategies.
   Do not try another command or a raw request.
-  Times are seconds and paces seconds per km; convert them to `h:mm:ss` and
-  `m:ss /km` for the user.
+- In `garmin pacepro` output, times are seconds and paces seconds per km; convert
+  them to `h:mm:ss` and `m:ss /km` for the user.
 - Summary floats are rounded to two decimals. Quote them as printed.
 - Start with the summary. Add `--raw` only when the field you need is missing from it:
   raw output is the full Garmin response, many times larger.
