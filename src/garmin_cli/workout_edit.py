@@ -2,7 +2,9 @@ import argparse
 import sys
 from typing import Any
 
+from garmin_cli import strength
 from garmin_cli.client import Connect
+from garmin_cli.errors import GarminCliError
 from garmin_cli.workout_add import read_strength, read_workout
 from garmin_cli.workouts import describe, fetch_workout, workout_id
 
@@ -10,13 +12,27 @@ from garmin_cli.workouts import describe, fetch_workout, workout_id
 def edit_workout(args: argparse.Namespace, connect: Connect) -> Any:
     workout = read_strength(args) if args.strength else read_workout(args)
     client = connect()
-    fetch_workout(client, args.id)
+    target = fetch_workout(client, args.id)
+    if args.strength:
+        sport = (target.get("sportType") or {}).get("sportTypeKey")
+        if sport != strength.STRENGTH["sportTypeKey"]:
+            raise GarminCliError(
+                f"Workout {args.id} is not a strength workout.",
+                "Check the ID with 'garmin workouts', or edit it without --strength.",
+            )
+        # The short format has no owner, which the `--raw` round trip carries.
+        workout = {**workout, "ownerId": target.get("ownerId")}
     client.update_workout(args.id, workout)
     print(
         f'garmin: Updated workout "{workout["workoutName"]}" (ID {args.id}).',
         file=sys.stderr,
     )
-    return describe(fetch_workout(client, args.id))
+    stored = fetch_workout(client, args.id)
+    # Garmin can answer 0 for a strength workout (#125); show the estimate sent.
+    if not stored.get("estimatedDurationInSecs"):
+        sent = workout.get("estimatedDurationInSecs")
+        stored = {**stored, "estimatedDurationInSecs": sent}
+    return describe(stored)
 
 
 def register(subparsers: "argparse._SubParsersAction[argparse.ArgumentParser]") -> None:

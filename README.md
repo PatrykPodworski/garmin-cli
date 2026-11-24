@@ -498,8 +498,14 @@ workout in the `garmin workout` format and stderr
 
 `--strength` rebuilds the workout from a file in the short format of
 `workout add --strength` (see "Strength workouts" above), so changing an exercise
-needs no raw JSON. The file describes the whole workout, and the input check is the
-same as for `workout add --strength`.
+needs no raw JSON. The file describes the whole workout, its `note` included, and
+the input check is the same as for `workout add --strength`. The target must be a
+strength workout; for any other sport the command exits 1 and changes nothing:
+`garmin: Workout 1234567890 is not a strength workout. Check the ID with 'garmin workouts', or edit it without --strength.`
+When Garmin answers 0 for the duration, stdout shows the estimate garmin-cli sent,
+as `workout add` does. The short format has no pounds, calorie or heart-rate end
+conditions, step targets or benchmark weights; edit a workout that uses them with
+the `--raw` round trip, or `--strength` drops them.
 
 ### workout delete
 

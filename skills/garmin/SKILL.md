@@ -91,8 +91,11 @@ garmin device list                      # devices on the account: id, name, mode
   `garmin workout ID --raw` to a file, change only what the user asked, then run
   `garmin workout edit ID --file FILE` with the same ID. For a strength workout,
   write the whole workout in the "Strength workout" format instead and run
-  `garmin workout edit ID --strength --file FILE`: the file replaces every step, so
-  carry over the exercises the user did not ask to change.
+  `garmin workout edit ID --strength --file FILE`. The file replaces every step and
+  the workout note, so rebuild it from `garmin workout ID`: carry over the note and
+  the exercises the user did not ask to change. When `garmin workout ID` shows a
+  weight in pounds, a heart-rate or calorie end, a step target or a benchmark
+  weight, the short format cannot hold it: use the `--raw` round trip instead.
 - `garmin workout delete` deletes without asking and cannot be undone; Garmin also
   removes the workout's calendar entries. Run it only for a workout the user asked
   you to delete. When the user names the workout instead of giving its ID, look up
