@@ -1,4 +1,7 @@
+import io
+import os
 import sys
+from pathlib import Path
 from typing import Any
 
 import pytest
@@ -406,11 +409,55 @@ def test_debug_keeps_expected_error_message(
     assert capsys.readouterr().err == "garmin: Not synced. Sync it.\n"
 
 
-def test_keyboard_interrupt_is_not_caught() -> None:
+def test_interrupt_exits_1_with_one_line(capsys: pytest.CaptureFixture[str]) -> None:
     client: Any = RaisingClient(KeyboardInterrupt())
 
-    with pytest.raises(KeyboardInterrupt):
-        main(["stats"], connect=lambda: client)
+    assert main(["stats"], connect=lambda: client) == 1
+    out = capsys.readouterr()
+    assert out.err == "garmin: Interrupted.\n"
+    assert out.out == ""
+
+
+class ClosedPipe(io.StringIO):
+    """A stdout whose reader has gone, as with `garmin … | head`. A small result
+    fails on the flush, a large one already on the write."""
+
+    def __init__(self, fd: int, failing: str) -> None:
+        super().__init__()
+        self.fd = fd
+        self.failing = failing
+
+    def write(self, text: str) -> int:
+        if self.failing == "write":
+            raise BrokenPipeError
+        return super().write(text)
+
+    def flush(self) -> None:
+        if self.failing == "flush":
+            raise BrokenPipeError
+
+    def fileno(self) -> int:
+        return self.fd
+
+
+@pytest.mark.parametrize("failing", ["write", "flush"])
+def test_closed_pipe_exits_1_quietly(
+    failing: str,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    client = FakeClient(get_stats={"totalSteps": 1})
+    stdout = tmp_path / "stdout"
+
+    with stdout.open("w") as file:
+        monkeypatch.setattr(sys, "stdout", ClosedPipe(file.fileno(), failing))
+        assert main(["stats", "--raw"], connect=lambda: client) == 1
+        # Python flushes stdout again at exit; that write must not reach the pipe.
+        os.write(file.fileno(), b"flushed at exit")
+
+    assert capsys.readouterr().err == ""
+    assert stdout.read_text() == ""
 
 
 def test_error_message_hides_garmintokens(

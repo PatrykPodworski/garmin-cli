@@ -299,6 +299,8 @@ def main(argv: list[str] | None = None, connect: Connect = auth.connect) -> int:
                 f"Could not reach Garmin Connect ({reason(error)}). "
                 "Check your internet connection and try again."
             )
+    except KeyboardInterrupt:
+        message = "Interrupted."
     except Exception as error:
         if args.debug:
             raise
@@ -309,7 +311,14 @@ def main(argv: list[str] | None = None, connect: Connect = auth.connect) -> int:
     else:
         if not getattr(args, "raw", False):
             result = round_floats(result)
-        print(json.dumps(result, indent=2))
+        try:
+            print(json.dumps(result, indent=2))
+            sys.stdout.flush()
+        except BrokenPipeError:
+            # The reader closed the pipe, as `| head` does. Python flushes stdout
+            # again at exit, so stdout goes to /dev/null to keep that write quiet.
+            os.dup2(os.open(os.devnull, os.O_WRONLY), sys.stdout.fileno())
+            return 1
         return 0
     print(f"garmin: {message}", file=sys.stderr)
     return 1
