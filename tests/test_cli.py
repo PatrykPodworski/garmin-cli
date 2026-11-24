@@ -418,23 +418,28 @@ def test_interrupt_exits_1_with_one_line(capsys: pytest.CaptureFixture[str]) -> 
     assert out.out == ""
 
 
-class ClosedPipe(io.StringIO):
-    """A stdout whose reader has gone, as with `garmin … | head`. A small result
-    fails on the flush, a large one already on the write."""
+class FailingStdout(io.StringIO):
+    """A stdout whose `write` or `flush` raises `error` once. A closed pipe, as with
+    `garmin … | head`, fails on the flush for a small result and already on the
+    write for a large one. Ctrl-C hits the write while a full pipe blocks it, as
+    with `garmin … | less`."""
 
-    def __init__(self, fd: int, failing: str) -> None:
+    def __init__(self, fd: int, failing: str, error: type[BaseException]) -> None:
         super().__init__()
         self.fd = fd
         self.failing = failing
+        self.error = error
 
     def write(self, text: str) -> int:
         if self.failing == "write":
-            raise BrokenPipeError
+            self.failing = ""
+            raise self.error
         return super().write(text)
 
     def flush(self) -> None:
         if self.failing == "flush":
-            raise BrokenPipeError
+            self.failing = ""
+            raise self.error
 
     def fileno(self) -> int:
         return self.fd
@@ -451,13 +456,24 @@ def test_closed_pipe_exits_1_quietly(
     stdout = tmp_path / "stdout"
 
     with stdout.open("w") as file:
-        monkeypatch.setattr(sys, "stdout", ClosedPipe(file.fileno(), failing))
+        closed = FailingStdout(file.fileno(), failing, BrokenPipeError)
+        monkeypatch.setattr(sys, "stdout", closed)
         assert main(["stats", "--raw"], connect=lambda: client) == 1
         # Python flushes stdout again at exit; that write must not reach the pipe.
         os.write(file.fileno(), b"flushed at exit")
 
     assert capsys.readouterr().err == ""
     assert stdout.read_text() == ""
+
+
+def test_interrupt_while_printing_exits_1_with_one_line(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    client = FakeClient(get_stats={"totalSteps": 1})
+    monkeypatch.setattr(sys, "stdout", FailingStdout(1, "write", KeyboardInterrupt))
+
+    assert main(["stats", "--raw"], connect=lambda: client) == 1
+    assert capsys.readouterr().err == "garmin: Interrupted.\n"
 
 
 def test_error_message_hides_garmintokens(

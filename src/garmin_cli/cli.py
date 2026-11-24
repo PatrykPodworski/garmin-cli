@@ -319,6 +319,10 @@ def main(argv: list[str] | None = None, connect: Connect = auth.connect) -> int:
             # again at exit, so stdout goes to /dev/null to keep that write quiet.
             os.dup2(os.open(os.devnull, os.O_WRONLY), sys.stdout.fileno())
             return 1
-        return 0
+        # Ctrl-C while a full pipe blocks the write, as under `| less`.
+        except KeyboardInterrupt:
+            message = "Interrupted."
+        else:
+            return 0
     print(f"garmin: {message}", file=sys.stderr)
     return 1
