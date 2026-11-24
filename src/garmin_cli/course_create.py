@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any, NoReturn
 from xml.etree import ElementTree
 
-from garmin_cli.activities import require_type
+from garmin_cli.activities import nonblank_name, require_type
 from garmin_cli.client import Connect
 from garmin_cli.courses import PRIVACY, summarize
 from garmin_cli.errors import GarminCliError
@@ -43,14 +43,6 @@ SAVE_FIELDS = frozenset(
 # What a GPX course is when the import leaves it null: GPX coordinates are WGS84, and
 # 3 is the GPX source type in gccli and garmin_mcp.
 GPX_COURSE = {"coordinateSystem": "WGS84", "sourceTypeId": 3}
-
-
-def course_name(value: str) -> str:
-    if not value.strip():
-        raise argparse.ArgumentTypeError(
-            f"Invalid --name '{value}'. Give a name that is not blank."
-        )
-    return value.strip()
 
 
 def privacy(value: str) -> str:
@@ -157,7 +149,7 @@ def register(commands: "argparse._SubParsersAction[argparse.ArgumentParser]") ->
     )
     create_parser.add_argument(
         "--name",
-        type=course_name,
+        type=nonblank_name,
         help="course name (default: the name Garmin reads from the GPX, else the "
         "file name)",
     )

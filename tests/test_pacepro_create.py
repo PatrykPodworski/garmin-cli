@@ -248,6 +248,8 @@ def test_pacepro_create_unknown_course_exits_1(
         [],
         [point(0.0)],
         [point(0.0), point(1000.0, None), point(2000.0)],
+        [point(0.0), point(0.0), point(0.0)],
+        [point(0.0), point(0.9)],
     ],
 )
 def test_pacepro_create_course_without_an_elevation_track_exits_1(
@@ -272,6 +274,32 @@ def test_pacepro_create_accepts_a_track_of_two_points(
     code, out, _ = run([*CREATE, "--dry-run"], client, capsys)
 
     assert (code, json.loads(out)["splits"]) == (0, SHOWN["splits"])
+
+
+def test_pacepro_create_accepts_a_track_of_1_m(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    client = create_client({**COURSE, "geoPoints": [point(0.0), point(1.0)]})
+
+    code, out, _ = run([*CREATE, "--dry-run"], client, capsys)
+
+    assert (code, json.loads(out)["splits"][0]["distance_m"]) == (0, 1.0)
+
+
+def test_pacepro_create_goal_pace_under_1_s_on_the_course_exits_1(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    client = create_client({**COURSE, "distanceMeter": 400.0})
+
+    argv = ["pacepro", "create", "--course", "111", "--goal-pace", "0:01"]
+
+    assert run(argv, client, capsys) == (
+        1,
+        "",
+        "garmin: Course 111 is too short for a goal pace of 0:01 per km: the goal "
+        "time rounds to 0 s. Give a slower --goal-pace or a --goal-time.\n",
+    )
+    assert [name for name, *_ in client.calls] == ["get_course"]
 
 
 def test_pacepro_create_course_without_geo_points_key_exits_1(
@@ -319,6 +347,13 @@ HELP = "Run 'garmin pacepro create --help'."
                 f"Invalid --goal-pace '{value}'. Use M:SS per km, like 5:30.",
             )
             for value in ("5", "5:60", "0:00", "1:05:00", "x:30")
+        ),
+        *(
+            (
+                [*CREATE, "--name", value],
+                f"Invalid --name '{value}'. Give a name that is not blank.",
+            )
+            for value in ("", "  ")
         ),
         *(
             (

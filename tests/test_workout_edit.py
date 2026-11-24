@@ -6,6 +6,7 @@ from typing import Any
 import pytest
 from conftest import FakeClient
 from garminconnect import GarminConnectConnectionError, GarminConnectNotFoundError
+from test_strength import PLAN, STRENGTH, UPLOADED
 from test_workout_add import WORKOUT, run, write
 from test_workouts import DETAIL, SUMMARY
 
@@ -31,6 +32,13 @@ SHOWN = {
     ],
 }
 UPDATED_LINE = 'garmin: Updated workout "Easy Intervals" (ID 501).\n'
+# Garmin can store 0 as a strength workout's duration (#125).
+STRENGTH_TARGET = {
+    **DETAIL,
+    "ownerId": 90001,
+    "sportType": STRENGTH,
+    "estimatedDurationInSecs": 0,
+}
 
 
 def edit_client(found: Any = DETAIL, updated: Any = None) -> FakeClient:
@@ -163,5 +171,85 @@ def test_workout_edit_missing_file_option_exits_2(
         "",
         "garmin: Missing --file for 'garmin workout edit'. Run 'garmin workout edit "
         "--help'.\n",
+    )
+    assert client.calls == []
+
+
+def test_workout_edit_strength_rebuilds_the_workout_from_the_short_format(
+    capsys: pytest.CaptureFixture[str], tmp_path: Path
+) -> None:
+    client = edit_client(STRENGTH_TARGET)
+    path = write(tmp_path, json.dumps(PLAN))
+
+    code, out, err = run(
+        ["workout", "edit", "501", "--strength", "--file", path], client, capsys
+    )
+
+    assert (code, json.loads(out), err) == (
+        0,
+        {**SHOWN, "sport": "strength_training", "estimated_duration_min": 12.03},
+        'garmin: Updated workout "Upper A" (ID 501).\n',
+    )
+    assert client.calls == [
+        ("get_workout_by_id", (501,), {}),
+        ("update_workout", (501, {**UPLOADED, "ownerId": 90001}), {}),
+        ("get_workout_by_id", (501,), {}),
+    ]
+
+
+@pytest.mark.parametrize("sport", [{"sportTypeKey": "running"}, None])
+def test_workout_edit_strength_refuses_another_sport(
+    capsys: pytest.CaptureFixture[str], tmp_path: Path, sport: Any
+) -> None:
+    client = edit_client({**DETAIL, "sportType": sport})
+    path = write(tmp_path, json.dumps(PLAN))
+
+    result = run(
+        ["workout", "edit", "501", "--strength", "--file", path], client, capsys
+    )
+
+    assert result == (
+        1,
+        "",
+        "garmin: Workout 501 is not a strength workout. Check the ID with 'garmin "
+        "workouts', or edit it without --strength.\n",
+    )
+    assert [call[0] for call in client.calls] == ["get_workout_by_id"]
+
+
+def test_workout_edit_strength_invalid_file_exits_2_without_calls(
+    capsys: pytest.CaptureFixture[str], tmp_path: Path
+) -> None:
+    client = edit_client()
+    path = write(tmp_path, json.dumps({"name": "Upper A"}))
+
+    result = run(
+        ["workout", "edit", "501", "--strength", "--file", path], client, capsys
+    )
+
+    assert result == (
+        2,
+        "",
+        f"garmin: The workout in '{path}' has no blocks. Add \"blocks\", a list of "
+        '{"sets": N, "steps": [...]}.\n',
+    )
+    assert client.calls == []
+
+
+def test_workout_edit_strength_rejects_garmin_json(
+    capsys: pytest.CaptureFixture[str], tmp_path: Path
+) -> None:
+    client = edit_client()
+    path = write(tmp_path, json.dumps(WORKOUT))
+
+    result = run(
+        ["workout", "edit", "501", "--strength", "--file", path], client, capsys
+    )
+
+    assert result == (
+        2,
+        "",
+        f"garmin: The workout in '{path}' has an unknown key 'workoutName'. Use only "
+        "name, note, warmup, blocks, cooldown.\n",
     )
     assert client.calls == []

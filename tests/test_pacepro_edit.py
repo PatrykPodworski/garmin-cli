@@ -190,6 +190,24 @@ def test_pacepro_edit_goal_saves_other_settings_as_a_v1_plan(
     assert put_body(client)["paceBandSummary"] == {**SUMMARY, "name": "Old Name"}
 
 
+@pytest.mark.parametrize(
+    "summary",
+    [
+        {**STORED_SUMMARY, "name": None},
+        {key: value for key, value in STORED_SUMMARY.items() if key != "name"},
+    ],
+)
+def test_pacepro_edit_goal_of_a_plan_without_name_shows_its_id(
+    summary: dict[str, Any], capsys: pytest.CaptureFixture[str]
+) -> None:
+    client = edit_client({**STORED, "paceBandSummary": summary})
+
+    result = run(["pacepro", "edit", "501", *NEW_GOAL], client, capsys)
+
+    assert result == (0, SHOWN, "garmin: Updated PacePro plan 501.\n")
+    assert put_body(client)["paceBandSummary"] == {**SUMMARY, "name": None}
+
+
 def test_pacepro_edit_unknown_id_exits_1(capsys: pytest.CaptureFixture[str]) -> None:
     client = edit_client(GarminConnectNotFoundError("404"))
 
@@ -212,6 +230,34 @@ def test_pacepro_edit_goal_on_a_course_without_elevation_exits_1(
         "",
         "garmin: Course 111 has no track with elevation, which PacePro needs. Pick "
         "another course from 'garmin course list'.\n",
+    )
+    assert [name for name, *_ in client.calls] == ["connectapi", "get_course"]
+
+
+def test_pacepro_edit_goal_on_a_zero_length_track_exits_1(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    course = {**COURSE, "geoPoints": [point(0.0), point(0.0)]}
+    client = edit_client(course=course)
+
+    code, _, err = run(["pacepro", "edit", "501", *NEW_GOAL], client, capsys)
+
+    assert (code, err.startswith("garmin: Course 111 has no track")) == (1, True)
+    assert [name for name, *_ in client.calls] == ["connectapi", "get_course"]
+
+
+def test_pacepro_edit_goal_pace_under_1_s_on_the_course_exits_1(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    client = edit_client(course={**COURSE, "distanceMeter": 4.0})
+
+    result = run(["pacepro", "edit", "501", "--goal-pace", "2:00"], client, capsys)
+
+    assert result == (
+        1,
+        "",
+        "garmin: Course 111 is too short for a goal pace of 2:00 per km: the goal "
+        "time rounds to 0 s. Give a slower --goal-pace or a --goal-time.\n",
     )
     assert [name for name, *_ in client.calls] == ["connectapi", "get_course"]
 
@@ -241,6 +287,13 @@ HELP = "Run 'garmin pacepro edit --help'."
         (
             ["pacepro", "edit", "x", "--name", "New Name"],
             f"Invalid PacePro plan ID 'x'. {LIST_IDS}",
+        ),
+        *(
+            (
+                ["pacepro", "edit", "501", "--name", value],
+                f"Invalid --name '{value}'. Give a name that is not blank.",
+            )
+            for value in ("", "  ")
         ),
     ],
 )
