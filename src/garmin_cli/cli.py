@@ -312,7 +312,12 @@ def main(argv: list[str] | None = None, connect: Connect = auth.connect) -> int:
         if not getattr(args, "raw", False):
             result = round_floats(result)
         try:
-            print(json.dumps(result, indent=2))
+            try:
+                print(json.dumps(result, indent=2, ensure_ascii=False))
+            except UnicodeEncodeError:
+                # A stdout in a legacy code page (cp1252 on Windows) cannot hold
+                # every character, so fall back to \u escapes.
+                print(json.dumps(result, indent=2))
             sys.stdout.flush()
         except BrokenPipeError:
             # The reader closed the pipe, as `| head` does. Python flushes stdout
