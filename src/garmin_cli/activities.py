@@ -1,6 +1,8 @@
 import argparse
+import difflib
+from collections.abc import Callable, Collection
 from datetime import date
-from typing import Any
+from typing import Any, NoReturn
 
 from garminconnect import GarminConnectNotFoundError
 
@@ -36,6 +38,32 @@ def positive_int(value: str) -> int:
             f"Invalid --limit '{value}'. Use a whole number of 1 or more."
         )
     return number
+
+
+def activity_id(value: str) -> str:
+    try:
+        number = int(value)
+    except ValueError:
+        number = 0
+    if number < 1:
+        raise argparse.ArgumentTypeError(
+            f"Invalid activity ID '{value}'. Run 'garmin activities' to list IDs."
+        )
+    return str(number)
+
+
+def require_type(
+    key: str, keys: Collection[str], fail: Callable[[str], NoReturn]
+) -> None:
+    """Fails with exit 2 unless `key` is one of Garmin's activity type `keys`."""
+    if key in keys:
+        return
+    problem = f"Unknown activity type '{key}'."
+    if match := difflib.get_close_matches(key, list(keys)):
+        fail(f"{problem} Did you mean '{match[0]}'?")
+    fail(
+        f"{problem} Use a Garmin type key, like running, cycling or strength_training."
+    )
 
 
 def summarize(raw: dict[str, Any], type_key: str | None) -> dict[str, Any]:
@@ -128,7 +156,9 @@ def register(subparsers: "argparse._SubParsersAction[argparse.ArgumentParser]") 
         "and 'garmin activity delete' deletes one. Run 'garmin activity add --help' "
         "or 'garmin activity delete --help' for their options.",
     )
-    activity_parser.add_argument("id")
+    activity_parser.add_argument(
+        "id", type=activity_id, help="activity ID from 'garmin activities'"
+    )
     activity_parser.add_argument(
         "--raw", action="store_true", help="print the full Garmin response"
     )

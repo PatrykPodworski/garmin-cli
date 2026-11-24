@@ -22,8 +22,17 @@ from garmin_cli import (
     activity_add,
     activity_delete,
     auth,
+    course_create,
+    course_send,
+    courses,
+    devices,
     exercises,
     health,
+    pacepro,
+    pacepro_create,
+    pacepro_delete,
+    pacepro_edit,
+    pacepro_send,
     recovery,
     sleep,
     sleep_set,
@@ -40,6 +49,7 @@ from garmin_cli.client import Connect
 from garmin_cli.errors import GarminCliError
 
 REQUIRED = "the following arguments are required: "
+CONFLICT = "not allowed with argument "
 ISSUES = "https://github.com/PatrykPodworski/garmin-cli/issues"
 RATE_LIMITED = (
     "Garmin is rate-limiting requests from this machine. "
@@ -101,18 +111,27 @@ class CliParser(argparse.ArgumentParser):
             if self.subparsers and name == self.subparsers.metavar:
                 return f"No command given. {self.run_command()}"
             if name == "id":
-                # `garmin activity …` or `garmin workout …`
+                # `garmin activity …`, `garmin workout …`, `garmin course view` or
+                # `garmin pacepro view|edit|delete|send`
                 noun = self.prog.split()[1]
-                listing = {"activity": "activities"}.get(noun, f"{noun}s")
+                listing = {
+                    "activity": "activities",
+                    "course": "course list",
+                    "pacepro": "pacepro list",
+                }.get(noun, f"{noun}s")
                 return (
                     f"Missing {noun} ID. Run 'garmin {listing}' to list IDs, "
                     f"then '{self.prog} <id>'."
                 )
             return f"Missing {name} for '{self.prog}'. Run '{self.prog} --help'."
-        # ponytail: only `garmin sleep` and `garmin sleep set` have mutually
-        # exclusive arguments, the same pair; name them from the message once
-        # another pair appears.
-        if detail.startswith("not allowed with argument "):
+        if detail.startswith(CONFLICT):
+            other = detail.removeprefix(CONFLICT)
+            # `garmin sleep` and `garmin sleep set` explain their pair.
+            if "--night-of" not in (option, other):
+                return (
+                    f"Give either {other} or {option}, not both. "
+                    f"Run '{self.prog} --help'."
+                )
             return (
                 f"Give either a date or --night-of, not both. Use '{self.prog} DATE' "
                 f"for the wake-up date or '{self.prog} --night-of DATE' for the "
@@ -213,6 +232,15 @@ def build_parser() -> CliParser:
     workout_schedule.register(subparsers)
     workout_unschedule.register(subparsers)
     exercises.register(subparsers)
+    course_commands = courses.register(subparsers)
+    course_create.register(course_commands)
+    course_send.register(course_commands)
+    pacepro_commands = pacepro.register(subparsers)
+    pacepro_create.register(pacepro_commands)
+    pacepro_edit.register(pacepro_commands)
+    pacepro_delete.register(pacepro_commands)
+    pacepro_send.register(pacepro_commands)
+    devices.register(subparsers)
     # The default names every choice, the two-word commands like `sleep set` too.
     subparsers.metavar = f"{{{','.join(parser.listed)}}}"
     return parser

@@ -2,20 +2,8 @@ import argparse
 import sys
 from typing import Any
 
-from garmin_cli.activities import fetch_activity
+from garmin_cli.activities import activity_id, fetch_activity
 from garmin_cli.client import Connect
-
-
-def activity_id(value: str) -> str:
-    try:
-        number = int(value)
-    except ValueError:
-        number = 0
-    if number < 1:
-        raise argparse.ArgumentTypeError(
-            f"Invalid activity ID '{value}'. Run 'garmin activities' to list IDs."
-        )
-    return str(number)
 
 
 def delete_activity(args: argparse.Namespace, connect: Connect) -> Any:

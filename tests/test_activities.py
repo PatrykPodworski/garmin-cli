@@ -236,3 +236,32 @@ def test_activity_raw(capsys: pytest.CaptureFixture[str]) -> None:
     assert result["summary"] == DETAIL
     assert result["splits"]["lapDTOs"][0]["startLatitude"] == 1.0
     assert result["hr_zones"][0]["zoneNumber"] == 1
+
+
+def never_connect() -> Any:
+    raise AssertionError("connect was called")
+
+
+@pytest.mark.parametrize("value", ["abc", "0", "-5", "1.5"])
+@pytest.mark.parametrize("extra", [[], ["--raw"]])
+def test_activity_invalid_id_exits_2_without_login(
+    capsys: pytest.CaptureFixture[str], value: str, extra: list[str]
+) -> None:
+    with pytest.raises(SystemExit) as exit:
+        main(["activity", value, *extra], connect=never_connect)
+
+    out = capsys.readouterr()
+    assert (exit.value.code, out.out, out.err) == (
+        2,
+        "",
+        f"garmin: Invalid activity ID '{value}'. Run 'garmin activities' to list "
+        "IDs.\n",
+    )
+
+
+def test_activity_takes_id_1(capsys: pytest.CaptureFixture[str]) -> None:
+    client = activity_client()
+
+    run_json(["activity", "1"], client, capsys)
+
+    assert client.calls[0] == ("get_activity", ("1",), {})

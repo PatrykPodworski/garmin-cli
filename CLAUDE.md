@@ -2,6 +2,8 @@
 
 Tracker: GitHub Issues
 
+Accepted decisions: `docs/adr/README.md`; read the ADRs whose title touches your work.
+
 This repository is public. Never commit real Garmin data.
 
 - Test fixtures and examples copied from real Garmin responses must be anonymized

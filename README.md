@@ -1,7 +1,8 @@
 # garmin-cli
 
 `garmin` reads your Garmin Connect data and prints it as JSON. It can also log a
-weigh-in and adjust a night's sleep times. Scripts, agents and people at a terminal can use it. It wraps
+weigh-in, adjust a night's sleep times, manage workouts, save GPX files as
+courses, send a course to a watch, and read, create, edit, delete and send PacePro plans. Scripts, agents and people at a terminal can use it. It wraps
 [python-garminconnect](https://github.com/cyberjunky/python-garminconnect).
 
 ## Install
@@ -22,10 +23,11 @@ export GARMIN_EMAIL=you@example.com
 garmin login
 ```
 
-`garmin login` asks for an MFA code if your account has one. It saves tokens to
-`~/.garminconnect`, or to the path in `GARMINTOKENS` if you set it. The other
-commands read those tokens. When the tokens expire, a command fails and tells you to
-run `garmin login` again.
+`garmin login` asks for an MFA code if your account has one. It always logs in as
+`GARMIN_EMAIL`, even when a saved login exists, and then saves the tokens to
+`~/.garminconnect`, or to the path in `GARMINTOKENS` if you set it. A failed login
+keeps the saved tokens. The other commands read those tokens. When the tokens expire,
+a command fails and tells you to run `garmin login` again.
 
 | Message starts with | Fix |
 |---|---|
@@ -36,6 +38,7 @@ run `garmin login` again.
 | `Garmin rejected the login` | Fix the Keychain password, then run `garmin login`. |
 | `No MFA code entered` | Run `garmin login` in a terminal and type the code. |
 | `Garmin is rate-limiting logins` | Wait about an hour, then run `garmin login`. |
+| `GARMINTOKENS holds the token JSON itself` | Set `GARMINTOKENS` to a token folder path, or unset it, then run `garmin login`. |
 
 ## Dates
 
@@ -300,7 +303,9 @@ garmin activity 1234567890
 
 One activity by the `id` from `garmin activities`. It has the same keys as an
 `activities` item, plus `laps` (the same keys per lap, without `type`) and
-`hr_zones` (seconds spent in each zone and the zone's lower bound in bpm).
+`hr_zones` (seconds spent in each zone and the zone's lower bound in bpm). An ID that
+is not a whole number of 1 or more exits with status 2 before logging in:
+`garmin: Invalid activity ID 'abc'. Run 'garmin activities' to list IDs.`
 
 ### activity add
 
@@ -589,10 +594,323 @@ categories, and an unknown one exits with status 2. `--limit` caps the count
 `garmin: 15 more exercises match. Raise --limit to see them.` The catalog comes with
 the garminconnect library, so the command needs no login and makes no network call.
 
+### course create
+
+```sh
+garmin course create --file hills.gpx --name "Hill repeats" --type trail_running
+garmin course create --file hills.gpx                       # running, private
+cat hills.gpx | garmin course create --file - --name "Hill repeats"
+```
+
+Saves a GPX file as a course in Garmin Connect, in two Garmin steps. The import
+step sends the file to Garmin, which parses it into a course object; that object
+is temporary, has no ID, and nothing is saved yet. The create step saves it as a
+course with its own ID, the one `garmin course view` takes. Garmin rejects the
+import object as a save body, so the create step sends only the course fields
+Garmin saves, leaves out the empty ones, and fills in the start point (the first
+track point), the coordinate system (WGS84) and the source type (GPX) when the
+import left them empty. Garmin computes distance and elevation on save. When the
+import finds no track, the command exits 1 and saves nothing.
+
+`--name` sets the course name (default: the name Garmin reads from the GPX, else
+the file name without `.gpx`, or `Course` for stdin). `--type` takes a Garmin
+activity type key, as `garmin activity add` does (default `running`); an unknown
+key exits 2 before the import. `--privacy` is `private` (default) or `public`.
+`--file -` reads the GPX from stdin.
+
+garmin-cli checks before it calls Garmin that the file is readable XML with a
+`<gpx>` root and at least 2 track or route points (`trkpt` or `rtept`), and exits
+2 otherwise. TCX and FIT files are not supported. stdout is the saved course, with
+the keys of `garmin course view`, and stderr
+`garmin: Imported 'hills.gpx' and saved it as course "Hill repeats" (ID 1234567).`
+Running it again saves a second copy. `garmin course send` sends the course to
+a watch.
+
+### course list
+
+```sh
+garmin course list
+garmin course list --limit 100
+```
+
+```json
+[
+  {
+    "id": 1234567,
+    "name": "Hill repeats",
+    "type": "trail_running",
+    "distance_m": 5321.5,
+    "elevation_gain_m": 210.25,
+    "elevation_loss_m": 209.75,
+    "privacy": "private"
+  }
+]
+```
+
+The courses saved in Garmin Connect, in the order Garmin returns them. `--limit`
+caps the count (default 20). No courses prints `[]`. A key Garmin has no value for
+is left out.
+
+### course view
+
+```sh
+garmin course view 1234567
+```
+
+One course by the `id` from `garmin course list` or `garmin course create`, with
+the same keys as a `course list` item. `distance_m` and the elevation keys are
+meters; Garmin computes them when it saves the course.
+
+### course send
+
+```sh
+garmin device list                         # find the watch's id
+garmin course send 1234567 --device 3333333333
+```
+
+```json
+{
+  "course_id": 1234567,
+  "course": "Hill repeats",
+  "device_id": 3333333333,
+  "device": "My watch",
+  "message_id": 888888
+}
+```
+
+Queues a saved course for one device, like *Send to Device* in Garmin Connect.
+The watch downloads it on its next sync with Garmin Connect. A success means
+Garmin accepted the message, not that the course is on the watch yet.
+
+The course ID comes from `garmin course list`, and `--device` takes an `id` from
+`garmin device list`; there is no default device. The command fetches the course
+and the account's devices first and exits 1, sending nothing, when either ID is
+unknown. stderr is
+`garmin: Queued course "Hill repeats" (ID 1234567) for device "My watch" (ID 3333333333). The watch gets it on its next sync.`
+`message_id` is left out when Garmin's answer has none. `--raw` prints Garmin's
+answer to the send. Running it again queues the course again.
+
+garminconnect has no call for this, so garmin-cli posts the device message
+itself, through the library's HTTP client and the same endpoint the library's
+`push_workout_to_device` uses for workouts. The course fields follow
+[bpauli/gccli](https://github.com/bpauli/gccli) (`internal/garminapi/courses.go`,
+`SendCourseToDevice`). If Garmin changes the message format, the command fails
+with `Garmin Connect rejected the request`.
+
+### pacepro list
+
+```sh
+garmin pacepro list
+garmin pacepro list --limit 50
+```
+
+```json
+[
+  {
+    "id": 7654321,
+    "name": "Hill repeats 10k",
+    "course_id": 1234567,
+    "split": "elevation",
+    "distance_m": 10000.0,
+    "goal_time_s": 4000,
+    "goal_pace_s_per_km": 400,
+    "pacing_strategy": -0.25,
+    "uphill_effort": 1.5,
+    "splits": 12
+  }
+]
+```
+
+The PacePro plans saved in Garmin Connect, in the order Garmin returns them.
+`--limit` caps the count (default 20). No plans prints `[]`. A key Garmin has no
+value for is left out.
+
+- `course_id` is the course the plan was made from; `garmin course view` takes it.
+- `split` is `km` or `elevation`, the split modes seen on a real account. Any other
+  value Garmin sends (for example miles) is printed unchanged.
+- `goal_pace_s_per_km` comes from Garmin's goal speed; `splits` is the number of splits.
+- `pacing_strategy` and `uphill_effort` are Garmin's slider values, printed unchanged.
+  Garmin does not document their scale or which sign means a negative split.
+
+### pacepro view
+
+```sh
+garmin pacepro view 7654321
+```
+
+```json
+{
+  "id": 7654321,
+  "name": "Hill repeats 10k",
+  "split": "elevation",
+  "splits": [
+    {
+      "distance_m": 4000.0,
+      "pace_s_per_km": 417,
+      "elevation_change_m": 30.5,
+      "cumulative_distance_m": 4000.0,
+      "cumulative_time_s": 1666.67
+    }
+  ]
+}
+```
+
+One plan by the `id` from `garmin pacepro list`, with the `pacepro list` keys and
+its splits in order: each split's length, target pace, elevation change from start
+to end, and the distance and time from the start at its end. An unknown ID exits 1.
+
+garminconnect 0.3.20 has one PacePro call, `get_pace_bands()`, and no call to
+create, edit, delete or send a plan. `pacepro view`, `pacepro create`,
+`pacepro edit`, `pacepro delete` and `pacepro send` send the Garmin Connect
+website's own requests through the library's HTTP client. Change a plan's split
+type, sliders or single paces in Garmin Connect: Training & Planning → PacePro
+Pacing Strategies.
+
+### pacepro create
+
+```sh
+garmin pacepro create --course 1234567 --goal-time 1:00:00 --dry-run
+garmin pacepro create --course 1234567 --goal-pace 5:45 --name "Hill race"
+```
+
+Computes a PacePro plan from a saved course and saves it to Garmin Connect. stdout
+is the saved plan with the keys of `garmin pacepro view`, and stderr
+`garmin: Created PacePro plan 7654321 from course 1234567.` Each run saves a new
+plan. `--dry-run` prints the plan it would save and saves nothing.
+
+- `--course` takes an `id` from `garmin course list`. An unknown ID, or a course
+  without a GPS track with elevation, exits 1 before anything is saved.
+- Give exactly one of `--goal-time H:MM:SS` and `--goal-pace M:SS` (per km).
+  The goal pace is turned into a goal time over the course distance.
+- `--name` names the plan (default: the course name).
+
+The plan has a split every km and the website's default sliders (uphill effort 0,
+pacing strategy 0). Elevation splits, miles and other slider values are not
+supported; make those plans on the website.
+
+The Garmin Connect website computes every split's target pace in the browser and
+sends the finished plan; Garmin's servers only store it. garmin-cli computes the
+splits with its own algorithm (`src/garmin_cli/pacing.py`, see
+[ADR 0001](docs/adr/0001-pacepro-clean-room-algorithm.md)), tuned against plans
+saved on the website with the default sliders: ten plans on courses from 5 to
+55 km, flat to hilly, with grades per km from −11 % to +13 %. On nine of them every
+split is within 3 s/km of the website's, and on the tenth within 3.4 s/km. The
+model:
+
+- Each split runs at the goal pace times
+  `1 + 1.68 × grade + 2.5 × grade²` on a climb and
+  `1 + 1.68 × grade + 10 × grade²` on a descent, where grade is the split's
+  elevation change over its length. All splits, the last one included, are then
+  scaled to finish in the goal time.
+- Near flat, 1 % of grade makes a split about 1.7 % slower uphill or faster
+  downhill. Climbs cost a little more as they steepen. On descents the gain peaks
+  at about −8 % (7 % faster than flat) and is gone by about −17 %.
+- The splits end at the track's great-circle length, which is a little shorter
+  than the course distance Garmin shows, as on the website. Each split's grade is
+  measured along that length.
+
+### pacepro edit
+
+```sh
+garmin pacepro edit 7654321 --name "Hill race"
+garmin pacepro edit 7654321 --goal-time 0:58:00
+garmin pacepro edit 7654321 --goal-pace 5:40 --name "Hill race"
+```
+
+Changes a saved PacePro plan's name, goal or both, and keeps its ID. Give at least
+one of `--name`, `--goal-time H:MM:SS` and `--goal-pace M:SS` (per km); with none,
+or with both goals, it exits 2. The command first reads the plan, so an unknown ID
+fails with the `garmin pacepro view` message and changes nothing. stdout is the
+stored plan with the keys of `garmin pacepro view`, and stderr
+`garmin: Updated PacePro plan "Hill race".`
+
+- A new name alone keeps the plan's splits and settings.
+- A new goal recomputes every split from the plan's course with the same algorithm
+  as `pacepro create`, so the course needs a GPS track with elevation. A goal pace
+  is turned into a goal time over the course distance. The plan is then saved with
+  km splits and the default sliders, even when it had elevation splits, other
+  slider values or paces edited by hand on the website. When it had any of those,
+  stderr says so: `garmin: Updated PacePro plan "Hill race"; it now has km splits
+  at the default sliders.`
+
+### pacepro delete
+
+```sh
+garmin pacepro delete 7654321 --dry-run
+garmin pacepro delete 7654321
+```
+
+Deletes a PacePro plan from Garmin Connect without asking. Take the ID from
+`garmin pacepro list`. The command first reads the plan, so an unknown ID fails with
+the `garmin pacepro view` message and deletes nothing. After the deletion, stdout is
+`{"deleted": 7654321}` and stderr `garmin: Deleted PacePro plan "Hill repeats 10k".`
+`--dry-run` only reads the plan: stdout `{"would_delete": 7654321}`, stderr
+`garmin: Would delete PacePro plan "Hill repeats 10k".` A plan without a name shows
+as `PacePro plan 7654321`.
+
+### pacepro send
+
+```sh
+garmin device list                         # find the watch's id
+garmin pacepro send 7654321 --device 3333333333
+```
+
+```json
+{
+  "plan_id": 7654321,
+  "plan": "Hill repeats 10k",
+  "device_id": 3333333333,
+  "device": "My watch"
+}
+```
+
+Queues a PacePro plan for one device, like *Send to Device* in Garmin Connect. The
+watch downloads it on its next sync with Garmin Connect. A success means Garmin
+accepted the plan, not that it is on the watch yet.
+
+The plan ID comes from `garmin pacepro list`, and `--device` takes an `id` from
+`garmin device list`; there is no default device. The command fetches the plan and
+the account's devices first and exits 1, sending nothing, when either ID is
+unknown. stderr is
+`garmin: Queued PacePro plan "Hill repeats 10k" (ID 7654321) for device "My watch" (ID 3333333333). The watch gets it on its next sync.`
+A plan without a name shows as `PacePro plan 7654321`, and a key with no value is
+left out of stdout. `--raw` prints Garmin's answer to the send, which is `{}`
+because Garmin answers with no body. Running it again queues the plan again.
+
+The command sends only the plan. The watch runs a PacePro plan with its course, so
+the course has to reach the watch too: if it does not arrive with the plan, send it
+with `garmin course send` and the plan's `course_id`.
+
+garminconnect has no call for this, so garmin-cli sends the website's own request
+through the library's HTTP client. If Garmin changes it, the command fails with
+`Garmin Connect rejected the request`.
+
+### device list
+
+```sh
+garmin device list
+```
+
+```json
+[
+  {
+    "id": 3333333333,
+    "name": "My watch",
+    "model": "fēnix 6 Pro"
+  }
+]
+```
+
+The devices registered to the Garmin Connect account. `id` is what
+`garmin course send --device` and `garmin pacepro send --device` take, `name` is the device's name in Garmin Connect,
+and `model` its product name. A key Garmin has no value for is left out. No
+devices prints `[]`.
+
 ## Raw output
 
 `stats`, `recovery view`, `sleep`, `weight`, `bp`, `activities`, `activity`,
-`workouts`, `workout` and `workout calendar` accept `--raw`. It
+`workouts`, `workout`, `workout calendar`, `course list`, `course view`,
+`course send`, `pacepro send` and `device list` accept `--raw`. It
 prints the full Garmin response instead of the summary. `activity --raw` combines
 three responses under `summary`, `splits` and `hr_zones`, and `recovery view --raw`
 under `training_readiness`, `training_status` and `hrv`. `workout calendar --raw`
@@ -623,6 +941,15 @@ Messages for status 1:
 | `sleep set` night has no time zone | `garmin: Garmin Connect sent no time zone for the night ending <date>, so garmin-cli cannot convert the times. Adjust the sleep times in the Garmin Connect app.` |
 | `activity <id>` not found | `garmin: No activity with ID <id>. Run 'garmin activities' to list recent IDs.` |
 | `workout <id>`, `workout edit <id>` or `workout schedule <id>` not found | `garmin: No workout with ID <id>. Run 'garmin workouts' to list IDs.` |
+| `course view <id>` not found | `garmin: No course with ID <id>. Run 'garmin course list' to list IDs.` |
+| `course send <id>` course not found | `garmin: No course with ID <id>. Run 'garmin course list' to list IDs.` |
+| `course send --device <id>` device not found | `garmin: No device with ID <id>. Run 'garmin device list' to list IDs.` |
+| `pacepro create --course <id>` course not found | `garmin: No course with ID <id>. Run 'garmin course list' to list IDs.` |
+| `pacepro create` course without a track | `garmin: Course <id> has no track with elevation, which PacePro needs. Pick another course from 'garmin course list'.` |
+| `pacepro edit <id>` plan not found | `garmin: No PacePro plan with ID <id>. Run 'garmin pacepro list' to list IDs.` |
+| `pacepro send <id>` plan not found | `garmin: No PacePro plan with ID <id>. Run 'garmin pacepro list' to list IDs.` |
+| `pacepro send --device <id>` device not found | `garmin: No device with ID <id>. Run 'garmin device list' to list IDs.` |
+| `course create` import has no track | `garmin: Garmin found no track in '<file>', so no course was saved. Check that the file imports in Garmin Connect's course import.` |
 | `workout unschedule <id>` not found | `garmin: No calendar entry with schedule ID <id>. Run 'garmin workout calendar' to list schedule IDs.` |
 | Rate limit | `garmin: Garmin is rate-limiting requests from this machine. Wait a few minutes and try again.` |
 | Tokens expired | `garmin: Not logged in: no valid saved login in ~/.garminconnect. Run 'garmin login'.` |

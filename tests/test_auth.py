@@ -1,4 +1,5 @@
 import json
+import os
 import subprocess
 from collections.abc import Callable
 from typing import Any
@@ -84,6 +85,16 @@ def test_connect_without_tokens_names_garmintokens(
     )
 
 
+class FakeTokenStore:
+    """`Garmin.client`; records where the tokens are saved."""
+
+    def __init__(self) -> None:
+        self.saved: list[str] = []
+
+    def dump(self, path: str) -> None:
+        self.saved.append(path)
+
+
 class FakeGarmin:
     def __init__(
         self,
@@ -97,10 +108,13 @@ class FakeGarmin:
         self.prompt_mfa = prompt_mfa
         self.needs_mfa = needs_mfa
         self.tokenstore: str | None = None
+        self.store_was_empty: bool | None = None
         self.mfa_code: str | None = None
+        self.client = FakeTokenStore()
 
     def login(self, tokenstore: str) -> None:
         self.tokenstore = tokenstore
+        self.store_was_empty = os.path.isdir(tokenstore) and not os.listdir(tokenstore)
         if self.needs_mfa:
             assert self.prompt_mfa is not None
             # garminconnect wraps whatever prompt_mfa raises.
@@ -166,7 +180,8 @@ def test_login_saves_tokens(
     ]
     [client] = clients
     assert (client.email, client.password) == ("runner@example.com", "fake-pass")
-    assert client.tokenstore == "~/.garminconnect"
+    assert client.store_was_empty
+    assert client.client.saved == ["~/.garminconnect"]
     out = capsys.readouterr()
     assert json.loads(out.out) == {"tokenstore": "~/.garminconnect"}
     assert "fake-pass" not in out.out + out.err
@@ -181,7 +196,8 @@ def test_login_saves_tokens_to_garmintokens(
     clients = fake_garmin(monkeypatch)
 
     assert main(["login"], connect=no_connect) == 0
-    assert clients[0].tokenstore == "/tokens"
+    assert clients[0].store_was_empty
+    assert clients[0].client.saved == ["/tokens"]
     assert json.loads(capsys.readouterr().out) == {
         "tokenstore": "the token store in GARMINTOKENS"
     }
@@ -309,12 +325,18 @@ def test_login_without_security_tool_names_garmintokens(
     )
 
 
-def failing_garmin(monkeypatch: pytest.MonkeyPatch, error: Exception) -> None:
+def failing_garmin(
+    monkeypatch: pytest.MonkeyPatch, error: Exception
+) -> list[FakeGarmin]:
+    clients: list[FakeGarmin] = []
+
     class FailingGarmin(FakeGarmin):
         def login(self, tokenstore: str) -> None:
+            clients.append(self)
             raise error
 
     monkeypatch.setattr(auth, "Garmin", FailingGarmin)
+    return clients
 
 
 def test_login_rejected_credentials(
@@ -322,7 +344,9 @@ def test_login_rejected_credentials(
 ) -> None:
     monkeypatch.setenv("GARMIN_EMAIL", "runner@example.com")
     fake_keychain(monkeypatch)
-    failing_garmin(monkeypatch, GarminConnectAuthenticationError("401 fake-pass"))
+    clients = failing_garmin(
+        monkeypatch, GarminConnectAuthenticationError("401 fake-pass")
+    )
 
     code = main(["login"], connect=no_connect)
 
@@ -332,6 +356,28 @@ def test_login_rejected_credentials(
         "Garmin rejected the login for runner@example.com. Check the Keychain "
         "password for service 'garmin' and run 'garmin login' again.",
     )
+    assert clients[0].client.saved == []
+
+
+@pytest.mark.parametrize("value", [*GARMINTOKENS_VALUES[1:], ' {"di_token": "x"}'])
+def test_login_with_token_json_in_garmintokens(
+    value: str, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setenv("GARMIN_EMAIL", "runner@example.com")
+    monkeypatch.setenv("GARMINTOKENS", value)
+    fake_keychain(monkeypatch)
+    clients = fake_garmin(monkeypatch)
+
+    code = main(["login"], connect=no_connect)
+
+    assert_login_error(
+        capsys,
+        code,
+        "GARMINTOKENS holds the token JSON itself, so 'garmin login' has no folder "
+        "to save the new login to. Set GARMINTOKENS to a token folder path, or "
+        "unset it, and run 'garmin login' again.",
+    )
+    assert clients == []
 
 
 def test_login_rate_limited(
@@ -398,3 +444,71 @@ def test_login_mfa_empty_code(
     mfa_answer(monkeypatch, lambda prompt: "")
 
     assert_login_error(capsys, main(["login"], connect=no_connect), NO_MFA_CODE)
+
+
+def library_with_fake_io(
+    tmp_path: Any, monkeypatch: pytest.MonkeyPatch, rejected: bool = False
+) -> list[str]:
+    """Runs the real garminconnect login control flow with its I/O mocked. The
+    token store in tmp_path holds a saved session of another account."""
+    from garminconnect.client import Client
+
+    (tmp_path / "garmin_tokens.json").write_text(
+        json.dumps({"di_token": "fake-token-cached@example.invalid"})
+    )
+    monkeypatch.setenv("GARMINTOKENS", str(tmp_path))
+    monkeypatch.setenv("GARMIN_EMAIL", "requested@example.invalid")
+    fake_keychain(monkeypatch)
+    credential_logins: list[str] = []
+
+    def credential_login(
+        self: Client, email: str, password: str, **kwargs: Any
+    ) -> tuple[None, None]:
+        credential_logins.append(email)
+        if rejected:
+            raise GarminConnectAuthenticationError("fake rejection")
+        self.loads(json.dumps({"di_token": f"fake-token-{email}"}))
+        return None, None
+
+    def connectapi(self: Client, path: str, **kwargs: Any) -> dict[str, Any]:
+        if "socialProfile" in path:
+            return {"displayName": "fake-display-name", "profileId": 1}
+        return {"userData": {"measurementSystem": "metric"}}
+
+    def no_network(self: Client, *args: Any, **kwargs: Any) -> Any:
+        raise AssertionError("no network in tests")
+
+    monkeypatch.setattr(Client, "login", credential_login)
+    monkeypatch.setattr(Client, "connectapi", connectapi)
+    monkeypatch.setattr(Client, "request", no_network)
+    return credential_logins
+
+
+def saved_token(tmp_path: Any) -> Any:
+    return json.loads((tmp_path / "garmin_tokens.json").read_text())["di_token"]
+
+
+def test_login_replaces_another_accounts_saved_session(
+    tmp_path: Any, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    credential_logins = library_with_fake_io(tmp_path, monkeypatch)
+
+    assert main(["login"], connect=no_connect) == 0
+
+    assert credential_logins == ["requested@example.invalid"]
+    assert saved_token(tmp_path) == "fake-token-requested@example.invalid"
+    assert json.loads(capsys.readouterr().out) == {
+        "tokenstore": "the token store in GARMINTOKENS"
+    }
+
+
+def test_rejected_login_keeps_the_saved_session(
+    tmp_path: Any, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    credential_logins = library_with_fake_io(tmp_path, monkeypatch, rejected=True)
+
+    assert main(["login"], connect=no_connect) == 1
+
+    assert credential_logins == ["requested@example.invalid"]
+    assert saved_token(tmp_path) == "fake-token-cached@example.invalid"
+    assert capsys.readouterr().err.startswith("garmin: Garmin rejected the login")

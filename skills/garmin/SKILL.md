@@ -1,15 +1,17 @@
 ---
 name: garmin
-description: Use when the user asks about their Garmin data — workouts (runs, rides), sleep or sleep score, weight, body fat, blood pressure, calories burned, resting heart rate, body battery, stress, training readiness, training status, training load, recovery time or HRV status — or asks to adjust a night's sleep times, log a weigh-in, add a manual activity, delete an activity, find a workout in their workout library, create or change a structured running workout, create a strength workout with exercises, sets, reps and weights, look up a strength exercise name, delete a workout, or put a workout on their calendar, take it off or see what is scheduled.
+description: Use when the user asks about their Garmin data — workouts (runs, rides), sleep or sleep score, weight, body fat, blood pressure, calories burned, resting heart rate, body battery, stress, training readiness, training status, training load, recovery time or HRV status — or asks to adjust a night's sleep times, log a weigh-in, add a manual activity, delete an activity, find a workout in their workout library, create or change a structured running workout, create a strength workout with exercises, sets, reps and weights, look up a strength exercise name, delete a workout, put a workout on their calendar, take it off or see what is scheduled, save a GPX file as a course, list or look up their courses, send a course to their watch, list, look up or delete their PacePro pacing plans, create a PacePro plan from a course, rename a PacePro plan or change its goal time or pace, send a PacePro plan to their watch, or list their devices.
 ---
 
 # garmin
 
 `garmin` reads the user's Garmin Connect data and prints JSON. Run it with Bash.
-Nine commands change data: `garmin weight add`, `garmin sleep set`,
+Fifteen commands change data: `garmin weight add`, `garmin sleep set`,
 `garmin activity add`, `garmin activity delete`, `garmin workout add`,
-`garmin workout edit`, `garmin workout delete`, `garmin workout schedule` and
-`garmin workout unschedule`.
+`garmin workout edit`, `garmin workout delete`, `garmin workout schedule`,
+`garmin workout unschedule`, `garmin course create`, `garmin course send`,
+`garmin pacepro create`, `garmin pacepro edit`, `garmin pacepro delete` and
+`garmin pacepro send`.
 
 ## Login
 
@@ -46,6 +48,17 @@ garmin workout schedule ID DATE         # put a library workout on the calendar;
 garmin workout unschedule SCHEDULE_ID   # take one entry off the calendar; schedule_id from `workout calendar`
 garmin workout calendar --from DATE --to DATE  # scheduled workouts (default today to 4 weeks after --from)
 garmin exercise list --search TEXT [--category CATEGORY] [--limit N]  # strength exercise names for --strength files, no login
+garmin course create --file GPX [--name NAME] [--type KEY] [--privacy private|public]  # import a GPX and save it as a course (default running, private)
+garmin course list --limit 50           # saved courses, default limit 20
+garmin course view ID                   # one course: distance, elevation, type, privacy; ID from `course list`
+garmin course send ID --device DEVICE_ID  # queue a course for a watch; DEVICE_ID from `device list`
+garmin pacepro list --limit 50          # PacePro plans: course, split mode, goal time and pace; default limit 20
+garmin pacepro view ID                  # one PacePro plan with each split's target pace; ID from `pacepro list`
+garmin pacepro create --course ID (--goal-time H:MM:SS | --goal-pace M:SS) [--name NAME] [--dry-run]  # compute a plan with km splits and the website's default sliders from a course and save it
+garmin pacepro edit ID [--name NAME] [--goal-time H:MM:SS | --goal-pace M:SS]  # rename a plan or change its goal; a new goal recomputes km splits at the default sliders
+garmin pacepro delete ID [--dry-run]    # delete a PacePro plan; ID from `pacepro list`
+garmin pacepro send ID --device DEVICE_ID  # queue a PacePro plan for a watch; DEVICE_ID from `device list`
+garmin device list                      # devices on the account: id, name, model
 ```
 
 `garmin <command> --help` lists every flag.
@@ -89,6 +102,48 @@ garmin exercise list --search TEXT [--category CATEGORY] [--limit N]  # strength
   Garmin calendar. Run them only for a workout and date the user named. Before
   scheduling, check `garmin workout calendar` for that date, so the workout is not
   scheduled twice. Unschedule only an entry the user asked to remove.
+- `garmin course create` writes to the user's Garmin account. Run it only for a GPX
+  file the user named, with the name, type and privacy they gave; leave privacy at
+  `private` unless they asked for public. Each run saves a new course, so after a
+  failed run check `garmin course list` before retrying.
+- `garmin course send` queues a course for a watch in the user's Garmin account.
+  Run it only for a course and device the user named. Pick the device from
+  `garmin device list` by the name or model the user gave; when more than one
+  matches, or the user named none, ask. Success means Garmin queued the course,
+  not that it is on the watch: tell the user it arrives on the watch's next sync.
+  Each run queues it again, so do not retry after success.
+- `garmin pacepro create` writes a new plan to the user's Garmin account. Run it
+  only for a course and goal the user gave. It always makes km splits with the
+  website's default sliders; for elevation splits, miles or other slider values,
+  point the user to the Garmin Connect website. Run it with `--dry-run` first and
+  show the user the splits. Each run saves a new plan, so after a failed run check
+  `garmin pacepro list` before retrying. Its splits come from garmin-cli's own
+  algorithm and differ a little from plans made on the Garmin Connect website.
+- `garmin pacepro edit` changes a plan in the user's Garmin account and has no
+  `--dry-run`. Run it only for a plan and a change the user gave. A new name alone
+  keeps the splits. A new goal replaces every split, and the plan then has km
+  splits at the website's default sliders: its elevation splits, slider values
+  and hand-edited paces are lost. Before a goal change, read the plan with
+  `garmin pacepro view ID --raw`. When `paceBandSummary` has a `splitType` other
+  than `DISTANCE_KILOMETER`, an `uphillEffort` or `pacingStrategy` other than 0,
+  or `manualPaceEdit` true, tell the user what will be lost and ask first.
+  Running it again with the same options gives the same plan.
+- `garmin pacepro delete` deletes without asking and cannot be undone. Run it only
+  for a plan the user asked you to delete. When the user names the plan instead of
+  giving its ID, look up the ID with `garmin pacepro list`, run
+  `garmin pacepro delete ID --dry-run`, and confirm the match with the user first.
+- `garmin pacepro send` queues a PacePro plan for a watch, with the same rules as
+  `garmin course send`: only a plan and device the user named, ask when the device
+  is unclear, and do not retry after success. It sends only the plan: tell the user
+  it arrives on the next sync, and that the plan's course has to be on the watch
+  too. If the course does not arrive, offer `garmin course send` with the plan's
+  `course_id` from `garmin pacepro view`.
+- The CLI cannot change a PacePro plan's split type or sliders, or edit single
+  paces. When the user asks for that, point them to Garmin Connect: Training &
+  Planning → PacePro Pacing Strategies.
+  Do not try another command or a raw request.
+  Times are seconds and paces seconds per km; convert them to `h:mm:ss` and
+  `m:ss /km` for the user.
 - Summary floats are rounded to two decimals. Quote them as printed.
 - Start with the summary. Add `--raw` only when the field you need is missing from it:
   raw output is the full Garmin response, many times larger.

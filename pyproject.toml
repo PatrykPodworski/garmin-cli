@@ -62,3 +62,5 @@ source_paths = ["src/"]
 # The coverage gate measures the mutated copy in mutants/, not src/.
 pytest_add_cli_args = ["--no-cov"]
 pytest_add_cli_args_test_selection = ["tests/"]
+# test_check_adrs.py runs the script on the repo's ADRs.
+also_copy = ["scripts/", "docs/"]
