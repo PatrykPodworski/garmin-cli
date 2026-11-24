@@ -484,6 +484,7 @@ not supported. Output, `--schedule` and errors are the same as for any other
 garmin workout 1234567890 --raw > intervals.json
 # change intervals.json
 garmin workout edit 1234567890 --file intervals.json
+garmin workout edit 1234567890 --strength --file upper.json
 ```
 
 Replaces a workout in the Garmin Connect workout library with the workout in the
@@ -494,6 +495,17 @@ as for `workout add`, and the command reads the workout first, so an unknown ID
 fails with the `garmin workout` message and changes nothing. stdout is the updated
 workout in the `garmin workout` format and stderr
 `garmin: Updated workout "5 x 1 km" (ID 1234567890).`
+
+`--strength` rebuilds the workout from a file in the short format of
+`workout add --strength` (see "Strength workouts" above), so changing an exercise
+needs no raw JSON. The file describes the whole workout, its `note` included, and
+the input check is the same as for `workout add --strength`. The target must be a
+strength workout; for any other sport the command exits 1 and changes nothing:
+`garmin: Workout 1234567890 is not a strength workout. Check the ID with 'garmin workouts', or edit it without --strength.`
+When Garmin answers 0 for the duration, stdout shows the estimate garmin-cli sent,
+as `workout add` does. The short format has no pounds, calorie or heart-rate end
+conditions, step targets or benchmark weights; edit a workout that uses them with
+the `--raw` round trip, or `--strength` drops them.
 
 ### workout delete
 
@@ -773,9 +785,11 @@ is the saved plan with the keys of `garmin pacepro view`, and stderr
 plan. `--dry-run` prints the plan it would save and saves nothing.
 
 - `--course` takes an `id` from `garmin course list`. An unknown ID, or a course
-  without a GPS track with elevation, exits 1 before anything is saved.
+  without a GPS track with elevation of at least 1 m, exits 1 before anything is
+  saved.
 - Give exactly one of `--goal-time H:MM:SS` and `--goal-pace M:SS` (per km).
-  The goal pace is turned into a goal time over the course distance.
+  The goal pace is turned into a goal time over the course distance. A goal pace
+  that gives a goal time under 1 s exits 1 before anything is saved.
 - `--name` names the plan (default: the course name).
 
 The plan has a split every km and the website's default sliders (uphill effort 0,
@@ -939,7 +953,8 @@ Messages for status 1:
 | `course send <id>` course not found | `garmin: No course with ID <id>. Run 'garmin course list' to list IDs.` |
 | `course send --device <id>` device not found | `garmin: No device with ID <id>. Run 'garmin device list' to list IDs.` |
 | `pacepro create --course <id>` course not found | `garmin: No course with ID <id>. Run 'garmin course list' to list IDs.` |
-| `pacepro create` course without a track | `garmin: Course <id> has no track with elevation, which PacePro needs. Pick another course from 'garmin course list'.` |
+| `pacepro create` course without a track, or with a track under 1 m | `garmin: Course <id> has no track with elevation, which PacePro needs. Pick another course from 'garmin course list'.` |
+| `pacepro create` or `pacepro edit` goal pace gives under 1 s | `garmin: Course <id> is too short for a goal pace of <M:SS> per km: the goal time rounds to 0 s. Give a slower --goal-pace or a --goal-time.` |
 | `pacepro edit <id>` plan not found | `garmin: No PacePro plan with ID <id>. Run 'garmin pacepro list' to list IDs.` |
 | `pacepro send <id>` plan not found | `garmin: No PacePro plan with ID <id>. Run 'garmin pacepro list' to list IDs.` |
 | `pacepro send --device <id>` device not found | `garmin: No device with ID <id>. Run 'garmin device list' to list IDs.` |

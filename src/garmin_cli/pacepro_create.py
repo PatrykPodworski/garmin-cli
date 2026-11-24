@@ -3,11 +3,12 @@ import re
 import sys
 from typing import Any
 
+from garmin_cli.activities import nonblank_name
 from garmin_cli.client import Connect
 from garmin_cli.courses import course_id, fetch_course
 from garmin_cli.errors import GarminCliError
 from garmin_cli.pacepro import show
-from garmin_cli.pacing import km_plan
+from garmin_cli.pacing import great_circle, km_plan
 
 
 def goal_time(value: str) -> int:
@@ -33,7 +34,11 @@ def goal_pace(value: str) -> int:
 
 def elevation_track(course: dict[str, Any], course_id: int) -> list[dict[str, Any]]:
     points: list[dict[str, Any]] = course.get("geoPoints") or []
-    if len(points) < 2 or any(point.get("elevation") is None for point in points):
+    if (
+        len(points) < 2
+        or any(point.get("elevation") is None for point in points)
+        or sum(map(great_circle, points, points[1:])) < 1
+    ):
         raise GarminCliError(
             f"Course {course_id} has no track with elevation, which PacePro needs.",
             "Pick another course from 'garmin course list'.",
@@ -41,12 +46,24 @@ def elevation_track(course: dict[str, Any], course_id: int) -> list[dict[str, An
     return points
 
 
+def goal_seconds(args: argparse.Namespace, distance: float, course_id: int) -> int:
+    seconds: int = args.goal_time or round(args.goal_pace * distance / 1000)
+    if seconds < 1:
+        pace = args.goal_pace
+        raise GarminCliError(
+            f"Course {course_id} is too short for a goal pace of "
+            f"{pace // 60}:{pace % 60:02} per km: the goal time rounds to 0 s.",
+            "Give a slower --goal-pace or a --goal-time.",
+        )
+    return seconds
+
+
 def create_plan(args: argparse.Namespace, connect: Connect) -> Any:
     client = connect()
     course = fetch_course(client, args.course)
     points = elevation_track(course, args.course)
     distance = course["distanceMeter"]
-    seconds = args.goal_time or round(args.goal_pace * distance / 1000)
+    seconds = goal_seconds(args, distance, args.course)
     plan = km_plan(
         args.course, args.name or course.get("courseName"), seconds, distance, points
     )
@@ -89,7 +106,9 @@ def register(commands: "argparse._SubParsersAction[argparse.ArgumentParser]") ->
     goal = create_parser.add_mutually_exclusive_group(required=True)
     goal.add_argument("--goal-time", type=goal_time, help="finish time, H:MM:SS")
     goal.add_argument("--goal-pace", type=goal_pace, help="average pace per km, M:SS")
-    create_parser.add_argument("--name", help="plan name (default: the course name)")
+    create_parser.add_argument(
+        "--name", type=nonblank_name, help="plan name (default: the course name)"
+    )
     create_parser.add_argument(
         "--dry-run", action="store_true", help="print the plan, save nothing"
     )

@@ -58,6 +58,31 @@ def test_stats_missing_optional_fields_are_null(
     }
 
 
+@pytest.mark.parametrize(("reported", "printed"), [(-1, None), (0, None), (1, 1)])
+def test_stats_avg_stress_below_1_is_null(
+    reported: int, printed: int | None, capsys: pytest.CaptureFixture[str]
+) -> None:
+    client = FakeClient(
+        get_stats={"totalKilocalories": 2400.0, "averageStressLevel": reported}
+    )
+
+    assert main(["stats", "2026-07-05"], connect=lambda: client) == 0
+    assert json.loads(capsys.readouterr().out)["avg_stress"] == printed
+
+
+def test_stats_raw_keeps_avg_stress_sentinel(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    day = {"totalKilocalories": 2400.0, "averageStressLevel": -1}
+
+    code = main(
+        ["stats", "--raw", "2026-07-05"], connect=lambda: FakeClient(get_stats=day)
+    )
+
+    assert code == 0
+    assert json.loads(capsys.readouterr().out) == day
+
+
 @pytest.mark.parametrize(
     "stats", [{"calendarDate": "2026-07-05"}, {"totalKilocalories": None}]
 )
