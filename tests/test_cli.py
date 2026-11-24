@@ -218,6 +218,19 @@ def test_prints_json_indented_by_2(capsys: pytest.CaptureFixture[str]) -> None:
 
 
 @pytest.mark.parametrize(
+    ("argv", "key"),
+    [(["activities"], "name"), (["activities", "--raw"], "activityName")],
+)
+def test_prints_non_ascii_text_as_is(
+    argv: list[str], key: str, capsys: pytest.CaptureFixture[str]
+) -> None:
+    client = FakeClient(get_activities=[{"activityName": "Bieg w Łodzi"}])
+
+    assert main(argv, connect=lambda: client) == 0
+    assert capsys.readouterr().out == f'[\n  {{\n    "{key}": "Bieg w Łodzi"\n  }}\n]\n'
+
+
+@pytest.mark.parametrize(
     "command",
     ["activities", "activity", "sleep", "stats", "weight", "bp", "workouts", "workout"],
 )

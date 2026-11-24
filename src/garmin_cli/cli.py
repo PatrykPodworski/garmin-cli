@@ -309,7 +309,7 @@ def main(argv: list[str] | None = None, connect: Connect = auth.connect) -> int:
     else:
         if not getattr(args, "raw", False):
             result = round_floats(result)
-        print(json.dumps(result, indent=2))
+        print(json.dumps(result, indent=2, ensure_ascii=False))
         return 0
     print(f"garmin: {message}", file=sys.stderr)
     return 1
