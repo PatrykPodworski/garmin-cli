@@ -1,16 +1,17 @@
 ---
 name: garmin
-description: Use when the user asks about their Garmin data — workouts (runs, rides), sleep or sleep score, weight, body fat, blood pressure, calories burned, resting heart rate, body battery, stress, training readiness, training status, training load, recovery time or HRV status — or asks to adjust a night's sleep times, log a weigh-in, add a manual activity, upload a FIT, GPX or TCX activity file, delete an activity, find a workout in their workout library, create or change a structured running workout, create a strength workout with exercises, sets, reps and weights, look up a strength exercise name, delete a workout, put a workout on their calendar, take it off or see what is scheduled, save a GPX file as a course, list or look up their courses, send a course to their watch, delete a course, list, look up or delete their PacePro pacing plans, create a PacePro plan from a course, rename a PacePro plan or change its goal time or pace, send a PacePro plan to their watch, or list their devices.
+description: Use when the user asks about their Garmin data — workouts (runs, rides), sleep or sleep score, weight, body fat, blood pressure, calories burned, resting heart rate, body battery, stress, training readiness, training status, training load, recovery time or HRV status — or asks to adjust a night's sleep times, log or delete a weigh-in, add a manual activity, upload a FIT, GPX or TCX activity file, delete an activity, find a workout in their workout library, create or change a structured running workout, create a strength workout with exercises, sets, reps and weights, look up a strength exercise name, delete a workout, put a workout on their calendar, take it off or see what is scheduled, save a GPX file as a course, list or look up their courses, send a course to their watch, delete a course, list, look up or delete their PacePro pacing plans, create a PacePro plan from a course, rename a PacePro plan or change its goal time or pace, send a PacePro plan to their watch, or list their devices.
 ---
 
 # garmin
 
 `garmin` reads the user's Garmin Connect data and prints JSON. Run it with Bash.
-Sixteen commands change data: `garmin weight add`, `garmin sleep set`,
-`garmin activity add`, `garmin activity delete`, `garmin workout add`,
-`garmin workout edit`, `garmin workout delete`, `garmin workout schedule`,
-`garmin workout unschedule`, `garmin course create`, `garmin course send`,
-`garmin course delete`, `garmin pacepro create`, `garmin pacepro edit`,
+Seventeen commands change data: `garmin weight add`, `garmin weight delete`,
+`garmin sleep set`, `garmin activity add`, `garmin activity delete`,
+`garmin workout add`, `garmin workout edit`, `garmin workout delete`,
+`garmin workout schedule`, `garmin workout unschedule`, `garmin course create`,
+`garmin course send`, `garmin course delete`, `garmin pacepro create`,
+`garmin pacepro edit`,
 `garmin pacepro delete` and `garmin pacepro send`.
 
 ## Login
@@ -30,8 +31,9 @@ garmin recovery view [DATE]            # training readiness, training status and
 garmin sleep [DATE]                    # the night that ended on the morning of DATE (default today)
 garmin sleep --night-of DATE           # the night that started on the evening of DATE
 garmin sleep set DATE --start HH:MM --end HH:MM  # move that night's sleep window (local times)
-garmin weight --from DATE --to DATE    # weigh-ins and body composition (both default today)
+garmin weight --from DATE --to DATE    # weigh-ins with their id and body composition (both default today)
 garmin weight add KG [--at "YYYY-MM-DD HH:MM"] [--unit lbs]  # log a weigh-in (default now, kg)
+garmin weight delete ID --date DATE [--dry-run]  # delete a weigh-in; id and date from `weight`
 garmin bp --from DATE --to DATE        # blood pressure readings (both default today)
 garmin activities --limit 5 --type running --from DATE --to DATE  # newest first, default limit 20
 garmin activity ID                     # one activity with laps and HR zones; ID from `activities`
@@ -76,6 +78,12 @@ garmin device list                      # devices on the account: id, name, mode
 - `garmin weight add` writes to the user's Garmin account. Run it only with a weight
   the user gave you. After a failed run, check `garmin weight` before retrying, so the
   weigh-in is not logged twice.
+- `garmin weight delete` deletes without asking and cannot be undone. Run it only
+  for a weigh-in the user asked you to delete. Garmin cannot edit a weigh-in: to
+  correct one, delete it and add it again. When the user names the weigh-in by date
+  or weight instead of ID, look up its `id` with `garmin weight`, run
+  `garmin weight delete ID --date DATE --dry-run`, and confirm the match with the
+  user first.
 - `garmin activity add` writes to the user's Garmin account. Run it only with the
   type, start and duration the user gave you, or with `--file` for a file the user
   asked you to upload. After a failed run, check `garmin activities` before
