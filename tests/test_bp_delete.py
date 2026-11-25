@@ -206,3 +206,31 @@ def test_bp_unknown_command_lists_delete(capsys: pytest.CaptureFixture[str]) -> 
         "garmin: Unknown command '120'. Run 'garmin bp <command>', one of: delete.\n",
     )
     assert client.calls == []
+
+
+@pytest.mark.parametrize(
+    ("extra", "message"),
+    [
+        (
+            ["--from", "today"],
+            "Unknown option '--from' for 'garmin bp delete'. Run 'garmin bp delete "
+            "--help' for all options.",
+        ),
+        (
+            ["extra"],
+            "Unexpected argument 'extra' for 'garmin bp delete'. Run 'garmin bp "
+            "delete --help' for all options.",
+        ),
+    ],
+)
+def test_bp_delete_extra_argument_exits_2(
+    capsys: pytest.CaptureFixture[str], extra: list[str], message: str
+) -> None:
+    client = delete_client()
+
+    result = run(
+        ["bp", "delete", "2002", "--date", "2026-07-05", *extra], client, capsys
+    )
+
+    assert result == (2, "", f"garmin: {message}\n")
+    assert client.calls == []

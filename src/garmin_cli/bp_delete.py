@@ -5,6 +5,7 @@ from typing import Any
 from garmin_cli.client import Connect
 from garmin_cli.dates import parse_date
 from garmin_cli.errors import GarminCliError
+from garmin_cli.health import bp_record
 
 
 def reading_id(value: str) -> int:
@@ -38,8 +39,9 @@ def delete_bp(args: argparse.Namespace, connect: Connect) -> Any:
             f"No blood pressure reading with ID {args.id} on {day}.",
             f"Run 'garmin bp --from {day} --to {day}' to list its IDs.",
         )
-    at = reading["measurementTimestampLocal"].split("T")[1][:5]
-    what = f"the reading of {day} {at} ({reading['systolic']}/{reading['diastolic']})"
+    record = bp_record(reading)
+    at = record["time"][:5]
+    what = f"the reading of {day} {at} ({record['systolic']}/{record['diastolic']})"
     if args.dry_run:
         print(f"garmin: Would delete {what}.", file=sys.stderr)
         return {"would_delete": args.id}
