@@ -2,7 +2,8 @@
 
 `garmin` reads your Garmin Connect data and prints it as JSON. It can also log a
 weigh-in, adjust a night's sleep times, manage workouts, save GPX files as
-courses, send a course to a watch, delete courses, and read, create, edit, delete and send PacePro plans. Scripts, agents and people at a terminal can use it. It wraps
+courses, send a course to a watch, rename courses or change their privacy, delete
+courses, and read, create, edit, delete and send PacePro plans. Scripts, agents and people at a terminal can use it. It wraps
 [python-garminconnect](https://github.com/cyberjunky/python-garminconnect).
 
 ## Install
@@ -666,6 +667,24 @@ garmin course view 1234567
 One course by the `id` from `garmin course list` or `garmin course create`, with
 the same keys as a `course list` item. `distance_m` and the elevation keys are
 meters; Garmin computes them when it saves the course.
+
+### course edit
+
+```sh
+garmin course edit 1234567 --name "Hill repeats 2"
+garmin course edit 1234567 --privacy public
+```
+
+Changes a saved course's name or privacy (`private` or `public`). Only the options
+given change; give at least one, or the command exits 2. The command reads the course
+first, so an unknown ID fails with the `garmin course view` message and changes
+nothing. It then sends the whole course back with the new values, so the track and
+the elevation stay as they are. stdout is the stored course, with the keys of
+`garmin course view`, and stderr `garmin: Updated course "Hill repeats 2" (ID 1234567).`
+
+For a few minutes after a course is saved or changed, Garmin refuses to change it
+again, and the command exits 1 with
+`garmin: Garmin is still processing course <id> after a change. Try again in a few minutes.`
 
 ### course send
 
