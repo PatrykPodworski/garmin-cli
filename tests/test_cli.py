@@ -139,7 +139,8 @@ CONFLICT = (
         (["weight", "ad"], "Unknown command 'ad'. Did you mean 'add'?"),
         (
             ["weight", "82.4"],
-            "Unknown command '82.4'. Run 'garmin weight <command>', one of: add.",
+            "Unknown command '82.4'. Run 'garmin weight <command>', one of: add, "
+            "delete.",
         ),
         (
             ["weight", "add", "82.4", "--from", "today"],

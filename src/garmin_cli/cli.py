@@ -39,6 +39,7 @@ from garmin_cli import (
     sleep_set,
     stats,
     weight_add,
+    weight_delete,
     workout_add,
     workout_delete,
     workout_edit,
@@ -112,13 +113,14 @@ class CliParser(argparse.ArgumentParser):
             if self.subparsers and name == self.subparsers.metavar:
                 return f"No command given. {self.run_command()}"
             if name == "id":
-                # `garmin activity …`, `garmin workout …`, `garmin course view` or
-                # `garmin pacepro view|edit|delete|send`
+                # `garmin activity …`, `garmin workout …`, `garmin course view`,
+                # `garmin pacepro view|edit|delete|send` or `garmin weight delete`
                 noun = self.prog.split()[1]
                 listing = {
                     "activity": "activities",
                     "course": "course list",
                     "pacepro": "pacepro list",
+                    "weight": "weight --from DATE --to DATE",
                 }.get(noun, f"{noun}s")
                 return (
                     f"Missing {noun} ID. Run 'garmin {listing}' to list IDs, "
@@ -210,7 +212,9 @@ def build_parser() -> CliParser:
         parser.add_subparsers(dest="command", required=True),
     )
     auth.register(subparsers)
-    weight_add.register(health.register(subparsers))
+    weight_commands = health.register(subparsers)
+    weight_add.register(weight_commands)
+    weight_delete.register(weight_commands)
     sleep.register(subparsers)
     sleep_set.register(subparsers)
     activities.register(subparsers)
