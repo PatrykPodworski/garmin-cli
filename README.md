@@ -362,7 +362,8 @@ without a name shows as `activity 1234567890`.
 it can feed a pipe. When stdout is a terminal, it exits 2 and writes nothing.
 
 The command first reads the activity, so an unknown ID exits 1 and downloads
-nothing. A manual activity has no recording: it exits 1 for every format. An
+nothing. Another account's public activity can be read but not downloaded: it
+exits 1. A manual activity has no recording: it exits 1 for every format. An
 activity uploaded as a GPX or TCX file has no FIT file on Garmin, so `--format fit`
 exits 1 and names the format to use, for example `--format gpx`.
 
@@ -998,6 +999,7 @@ Messages for status 1:
 | `sleep set` night has no time zone | `garmin: Garmin Connect sent no time zone for the night ending <date>, so garmin-cli cannot convert the times. Adjust the sleep times in the Garmin Connect app.` |
 | `activity <id>` not found | `garmin: No activity with ID <id>. Run 'garmin activities' to list recent IDs.` |
 | `activity download <id>` of a manual activity | `garmin: Activity <id> is a manual entry, so it has no recording to download. Run 'garmin activity <id>' to see it.` |
+| `activity download <id>` of another account's activity | `garmin: Cannot download activity <id>: it belongs to another account. Download your own activities only.` |
 | `activity download <id>` as `fit` of an uploaded GPX file | `garmin: Activity <id> was uploaded as a GPX file, so Garmin has no FIT file for it. Use --format gpx.` |
 | `workout <id>`, `workout edit <id>` or `workout schedule <id>` not found | `garmin: No workout with ID <id>. Run 'garmin workouts' to list IDs.` |
 | `course view <id>` not found | `garmin: No course with ID <id>. Run 'garmin course list' to list IDs.` |

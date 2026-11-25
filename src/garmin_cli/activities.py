@@ -8,11 +8,16 @@ from datetime import date
 from pathlib import Path, PurePosixPath
 from typing import Any, NoReturn
 
-from garminconnect import Garmin, GarminConnectNotFoundError
+from garminconnect import (
+    Garmin,
+    GarminConnectAuthenticationError,
+    GarminConnectConnectionError,
+    GarminConnectNotFoundError,
+)
 
 from garmin_cli.client import Connect, GarminClient
 from garmin_cli.dates import add_range_arguments
-from garmin_cli.errors import ISSUES, GarminCliError
+from garmin_cli.errors import ISSUES, GarminCliError, client_error
 from garmin_cli.output import NO_STDOUT
 
 # Output name -> Garmin key. A list item and a detail `summaryDTO` name the
@@ -205,7 +210,21 @@ def activity_download(args: argparse.Namespace, connect: Connect) -> Any:
             "download.",
             f"Run 'garmin activity {args.id}' to see it.",
         )
-    data = client.download_activity(args.id, dl_fmt=DOWNLOAD_FORMATS[args.format])
+    try:
+        data = client.download_activity(args.id, dl_fmt=DOWNLOAD_FORMATS[args.format])
+    except (GarminConnectAuthenticationError, GarminConnectConnectionError) as error:
+        # The read above worked with this login, so a 401 (garminconnect raises it
+        # as an authentication error) or a 403 here means the activity is another
+        # account's: this one can view it but not download it.
+        if (
+            not isinstance(error, GarminConnectAuthenticationError)
+            and client_error(error) != 403
+        ):
+            raise
+        raise GarminCliError(
+            f"Cannot download activity {args.id}: it belongs to another account.",
+            "Download your own activities only.",
+        ) from None
     if args.format == "fit":
         data = fit_file(data, args.id)
     if args.output == "-":

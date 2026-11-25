@@ -47,7 +47,7 @@ from garmin_cli import (
     workouts,
 )
 from garmin_cli.client import Connect
-from garmin_cli.errors import ISSUES, GarminCliError
+from garmin_cli.errors import ISSUES, GarminCliError, client_error
 from garmin_cli.output import NO_STDOUT
 
 REQUIRED = "the following arguments are required: "
@@ -184,14 +184,6 @@ def reason(error: BaseException) -> str:
     text = re.sub(r"\?\S+", "?…", text)
     text = re.sub(r"Bearer \S+", "Bearer …", text)
     return text[:100]
-
-
-def client_error(error: BaseException) -> int | None:
-    """The 4xx status Garmin answered with. garminconnect puts it only in the
-    message, as `API Error <status>`; a 5xx or a network failure has none."""
-    if match := re.search(r"API Error (4\d\d)\b", str(error)):
-        return int(match[1])
-    return None
 
 
 def round_floats(value: Any) -> Any:

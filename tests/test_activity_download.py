@@ -7,7 +7,12 @@ from typing import Any
 
 import pytest
 from conftest import FakeClient
-from garminconnect import Garmin, GarminConnectNotFoundError
+from garminconnect import (
+    Garmin,
+    GarminConnectAuthenticationError,
+    GarminConnectConnectionError,
+    GarminConnectNotFoundError,
+)
 from test_activities import DETAIL
 
 from garmin_cli.cli import main
@@ -268,6 +273,60 @@ def test_activity_download_unknown_id_exits_1(
         "IDs.\n",
     )
     assert client.calls == [("get_activity", ("999",), {})]
+
+
+@pytest.mark.parametrize(
+    "error",
+    [
+        GarminConnectConnectionError("Download client error (403): API Error 403"),
+        GarminConnectAuthenticationError("Authentication failed: API Error 401"),
+    ],
+)
+def test_activity_download_of_another_accounts_activity_exits_1(
+    capsys: pytest.CaptureFixture[str], tmp_path: Path, error: Exception
+) -> None:
+    path = tmp_path / "run.gpx"
+
+    result = run(
+        ["activity", "download", "101", "--format", "gpx", "--output", str(path)],
+        download_client(data=error),
+        capsys,
+    )
+
+    assert result == (
+        1,
+        "",
+        "garmin: Cannot download activity 101: it belongs to another account. "
+        "Download your own activities only.\n",
+    )
+    assert not path.exists()
+
+
+@pytest.mark.parametrize(
+    ("error", "message"),
+    [
+        (
+            GarminConnectConnectionError("Download client error (400): API Error 400"),
+            "Garmin Connect rejected the request (HTTP 400). Check the values you "
+            "gave, or rerun with --debug to see Garmin's response.",
+        ),
+        (
+            GarminConnectConnectionError("Download failed: timed out"),
+            "Could not reach Garmin Connect (GarminConnectConnectionError: Download "
+            "failed: timed out). Check your internet connection and try again.",
+        ),
+    ],
+)
+def test_activity_download_other_garmin_errors_keep_their_message(
+    capsys: pytest.CaptureFixture[str], tmp_path: Path, error: Exception, message: str
+) -> None:
+    result = run(
+        ["activity", "download", "101", "--output", str(tmp_path / "run.fit")],
+        download_client(data=error),
+        capsys,
+    )
+
+    assert result == (1, "", f"garmin: {message}\n")
 
 
 @pytest.mark.parametrize(
