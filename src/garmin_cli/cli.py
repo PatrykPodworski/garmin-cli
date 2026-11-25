@@ -46,11 +46,11 @@ from garmin_cli import (
     workouts,
 )
 from garmin_cli.client import Connect
-from garmin_cli.errors import GarminCliError
+from garmin_cli.errors import ISSUES, GarminCliError
+from garmin_cli.output import NO_STDOUT
 
 REQUIRED = "the following arguments are required: "
 CONFLICT = "not allowed with argument "
-ISSUES = "https://github.com/PatrykPodworski/garmin-cli/issues"
 RATE_LIMITED = (
     "Garmin is rate-limiting requests from this machine. "
     "Wait a few minutes and try again."
@@ -312,12 +312,13 @@ def main(argv: list[str] | None = None, connect: Connect = auth.connect) -> int:
         if not getattr(args, "raw", False):
             result = round_floats(result)
         try:
-            try:
-                print(json.dumps(result, indent=2, ensure_ascii=False))
-            except UnicodeEncodeError:
-                # A stdout in a legacy code page (cp1252 on Windows) cannot hold
-                # every character, so fall back to \u escapes.
-                print(json.dumps(result, indent=2))
+            if result is not NO_STDOUT:
+                try:
+                    print(json.dumps(result, indent=2, ensure_ascii=False))
+                except UnicodeEncodeError:
+                    # A stdout in a legacy code page (cp1252 on Windows) cannot
+                    # hold every character, so fall back to \u escapes.
+                    print(json.dumps(result, indent=2))
             sys.stdout.flush()
         except (BrokenPipeError, KeyboardInterrupt) as error:
             # The reader closed the pipe, as `| head` does, or Ctrl-C stopped a

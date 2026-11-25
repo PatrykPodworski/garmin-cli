@@ -1,3 +1,6 @@
+ISSUES = "https://github.com/PatrykPodworski/garmin-cli/issues"
+
+
 class GarminCliError(Exception):
     """An expected failure that `main` reports as `garmin: <problem> <action>`."""
 
