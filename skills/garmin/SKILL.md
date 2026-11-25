@@ -1,18 +1,18 @@
 ---
 name: garmin
-description: Use when the user asks about their Garmin data — workouts (runs, rides), sleep or sleep score, weight, body fat, blood pressure, calories burned, resting heart rate, body battery, stress, training readiness, training status, training load, recovery time or HRV status — or asks to adjust a night's sleep times, log or delete a weigh-in, add a manual activity, upload a FIT, GPX or TCX activity file, delete an activity, find a workout in their workout library, create or change a structured running workout, create a strength workout with exercises, sets, reps and weights, look up a strength exercise name, delete a workout, put a workout on their calendar, take it off or see what is scheduled, save a GPX file as a course, list or look up their courses, send a course to their watch, delete a course, list, look up or delete their PacePro pacing plans, create a PacePro plan from a course, rename a PacePro plan or change its goal time or pace, send a PacePro plan to their watch, or list their devices.
+description: Use when the user asks about their Garmin data — workouts (runs, rides), sleep or sleep score, weight, body fat, blood pressure, calories burned, resting heart rate, body battery, stress, training readiness, training status, training load, recovery time or HRV status — or asks to adjust a night's sleep times, log or delete a weigh-in, add a manual activity, upload a FIT, GPX or TCX activity file, delete an activity, download an activity as a FIT or GPX file, find a workout in their workout library, create or change a structured running workout, create a strength workout with exercises, sets, reps and weights, look up a strength exercise name, delete a workout, put a workout on their calendar, take it off or see what is scheduled, save a GPX file as a course, list or look up their courses, rename a course or change its privacy, send a course to their watch, delete a course, list, look up or delete their PacePro pacing plans, create a PacePro plan from a course, rename a PacePro plan or change its goal time or pace, send a PacePro plan to their watch, or list their devices.
 ---
 
 # garmin
 
 `garmin` reads the user's Garmin Connect data and prints JSON. Run it with Bash.
-Seventeen commands change data: `garmin weight add`, `garmin weight delete`,
+Eighteen commands change data: `garmin weight add`, `garmin weight delete`,
 `garmin sleep set`, `garmin activity add`, `garmin activity delete`,
 `garmin workout add`, `garmin workout edit`, `garmin workout delete`,
 `garmin workout schedule`, `garmin workout unschedule`, `garmin course create`,
-`garmin course send`, `garmin course delete`, `garmin pacepro create`,
-`garmin pacepro edit`,
-`garmin pacepro delete` and `garmin pacepro send`.
+`garmin course send`, `garmin course edit`, `garmin course delete`,
+`garmin pacepro create`, `garmin pacepro edit`, `garmin pacepro delete` and
+`garmin pacepro send`.
 
 ## Login
 
@@ -40,6 +40,7 @@ garmin activity ID                     # one activity with laps and HR zones; ID
 garmin activity add --type KEY --start "YYYY-MM-DD HH:MM" --duration MIN [--distance KM] [--calories KCAL] [--name NAME]  # private manual activity
 garmin activity add --file FILE        # upload a FIT, GPX or TCX file; `-` reads stdin; no other options
 garmin activity delete ID [--dry-run]  # delete an activity; ID from `activities`
+garmin activity download ID [--format fit|gpx|tcx|kml|csv] --output FILE  # save the recording as a file (default fit); --output - writes it to stdout for a pipe
 garmin workouts --limit 50              # workout library, newest created first, default limit 20
 garmin workout ID                      # one workout with its steps; ID from `workouts`
 garmin workout add --file FILE [--schedule DATE]  # save a workout (Garmin JSON, - for stdin), optionally on the calendar
@@ -54,6 +55,7 @@ garmin exercise list --search TEXT [--category CATEGORY] [--limit N]  # strength
 garmin course create --file GPX [--name NAME] [--type KEY] [--privacy private|public]  # import a GPX and save it as a course (default running, private)
 garmin course list --limit 50           # saved courses, default limit 20
 garmin course view ID                   # one course: distance, elevation, type, privacy; ID from `course list`
+garmin course edit ID [--name NAME] [--privacy private|public]  # rename a course or change its privacy; only the options given change
 garmin course send ID --device DEVICE_ID  # queue a course for a watch; DEVICE_ID from `device list`
 garmin course delete ID [--dry-run]     # delete a course and its PacePro plans; ID from `course list`
 garmin pacepro list --limit 50          # PacePro plans: course, split mode, goal time and pace; default limit 20
@@ -121,6 +123,10 @@ garmin device list                      # devices on the account: id, name, mode
   file the user named, with the name, type and privacy they gave; leave privacy at
   `private` unless they asked for public. Each run saves a new course, so after a
   failed run check `garmin course list` before retrying.
+- `garmin course edit` changes a course in the user's Garmin account. Run it only
+  for a course the user named, with the name or privacy they gave. When Garmin is
+  still processing the course after a change, nothing was changed: wait a few
+  minutes and retry.
 - `garmin course send` queues a course for a watch in the user's Garmin account.
   Run it only for a course and device the user named. Pick the device from
   `garmin device list` by the name or model the user gave; when more than one
