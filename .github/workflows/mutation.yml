@@ -1,0 +1,101 @@
+name: Mutation testing
+
+on:
+  schedule:
+    - cron: "0 2 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mutation
+  cancel-in-progress: false
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+    outputs:
+      run: ${{ steps.check.outputs.run }}
+    steps:
+      - id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ "$GITHUB_EVENT_NAME" = workflow_dispatch ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          last=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow mutation.yml \
+            --branch main --status completed --limit 20 --json headSha,conclusion \
+            -q '[.[] | select(.conclusion != "cancelled")][0].headSha')
+          if [ "$last" = "$GITHUB_SHA" ]; then
+            echo "main has no new commits since the last run ($last), skipping"
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  mutmut:
+    needs: changes
+    if: needs.changes.outputs.run == 'true'
+    runs-on: ubuntu-latest
+    outputs:
+      score: ${{ steps.score.outputs.score }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.3.3
+        with:
+          enable-cache: true
+      - run: uv sync --locked
+      - id: run
+        run: uv run mutmut run
+      - id: score
+        name: score (>= 80%)
+        run: |
+          uv run mutmut export-cicd-stats
+          uv run python -c '
+          import json, os, sys
+          s = json.load(open("mutants/mutmut-cicd-stats.json"))
+          score = 100 * s["killed"] / (s["killed"] + s["survived"] + s["timeout"] + s["suspicious"])
+          print(f"mutation score {score:.1f}%")
+          with open(os.environ["GITHUB_OUTPUT"], "a") as out:
+              out.write(f"score={score:.1f}%\n")
+          sys.exit(score < 80)
+          '
+      - name: mutmut results
+        if: ${{ !cancelled() && steps.run.outcome != 'skipped' }}
+        run: uv run mutmut results > mutmut-results.txt
+      - uses: actions/upload-artifact@v7
+        if: ${{ !cancelled() && steps.run.outcome != 'skipped' }}
+        with:
+          name: mutmut-results
+          path: mutmut-results.txt
+
+  report:
+    needs: [changes, mutmut]
+    if: failure()
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    steps:
+      - env:
+          GH_TOKEN: ${{ github.token }}
+          SCORE: ${{ needs.mutmut.outputs.score }}
+        run: |
+          gh label create mutmut-nightly --repo "$GITHUB_REPOSITORY" --force \
+            --color d73a4a --description "Nightly mutation testing failed"
+          body="Mutation testing failed on $GITHUB_REF_NAME at $GITHUB_SHA.
+
+          Score: ${SCORE:-not computed}
+          Run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+          open=$(gh issue list --repo "$GITHUB_REPOSITORY" --label mutmut-nightly \
+            --state open --limit 1 --json number -q '.[0].number')
+          if [ -n "$open" ]; then
+            gh issue comment "$open" --repo "$GITHUB_REPOSITORY" --body "$body"
+          else
+            gh issue create --repo "$GITHUB_REPOSITORY" --title "Nightly mutation testing failed" \
+              --label mutmut-nightly --body "$body"
+          fi
