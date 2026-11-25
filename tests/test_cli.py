@@ -14,6 +14,7 @@ from garminconnect import (
     GarminConnectTooManyRequestsError,
 )
 
+from garmin_cli import output, stats
 from garmin_cli.cli import CliParser, main, round_floats
 from garmin_cli.errors import GarminCliError
 
@@ -138,7 +139,8 @@ CONFLICT = (
         (["weight", "ad"], "Unknown command 'ad'. Did you mean 'add'?"),
         (
             ["weight", "82.4"],
-            "Unknown command '82.4'. Run 'garmin weight <command>', one of: add.",
+            "Unknown command '82.4'. Run 'garmin weight <command>', one of: add, "
+            "delete.",
         ),
         (
             ["weight", "add", "82.4", "--from", "today"],
@@ -211,6 +213,16 @@ def test_invalid_choice_on_subcommand_generic_message(
     assert err.startswith("garmin: Argument --unit: invalid choice: 'st' (choose from")
     assert err.endswith("). Run 'garmin demo --help'.\n")
     assert err.count("\n") == 1
+
+
+def test_prints_nothing_for_a_command_that_wrote_stdout(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setattr(stats, "stats", lambda _args, _connect: output.NO_STDOUT)
+
+    assert main(["stats"], connect=lambda: FakeClient()) == 0
+    out = capsys.readouterr()
+    assert (out.out, out.err) == ("", "")
 
 
 def test_prints_json_indented_by_2(capsys: pytest.CaptureFixture[str]) -> None:

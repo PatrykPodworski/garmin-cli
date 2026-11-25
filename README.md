@@ -198,6 +198,7 @@ garmin weight --from 2026-07-01 --to 2026-07-05
 ```json
 [
   {
+    "id": 1752345678901,
     "date": "2026-07-05",
     "time": "07:35:00",
     "weight_kg": 72.4,
@@ -208,7 +209,8 @@ garmin weight --from 2026-07-01 --to 2026-07-05
 ]
 ```
 
-One record per weigh-in, with local time. A scale that does not measure body
+One record per weigh-in, with local time. `id` is the ID `weight delete` takes.
+A scale that does not measure body
 composition leaves those fields `null`. A range with no weigh-ins prints `[]`.
 
 `weight add` logs a manual weigh-in and prints what it logged:
@@ -221,6 +223,21 @@ garmin weight add 82.4 --at "2026-07-05 07:30"   # local time
 ```
 
 `--at` takes only `YYYY-MM-DD HH:MM`, because a weigh-in needs a time.
+
+`weight delete` deletes a weigh-in from Garmin Connect without asking. Garmin
+cannot edit a weigh-in, so to correct one, delete it and add it again.
+
+```sh
+garmin weight delete 1752345678901 --date 2026-07-05 --dry-run
+garmin weight delete 1752345678901 --date 2026-07-05
+```
+
+Take the `id` and the `date` from `garmin weight`. The command first reads the
+weigh-ins of `--date`, so an ID that is not on that date exits with status 1 and
+deletes nothing. After the deletion, stdout is `{"deleted": 1752345678901}` and stderr
+`garmin: Deleted the weigh-in of 2026-07-05 07:35 (72.4 kg).` `--dry-run` only reads
+the weigh-ins: stdout `{"would_delete": 1752345678901}`, stderr
+`garmin: Would delete the weigh-in of 2026-07-05 07:35 (72.4 kg).`
 
 ### bp
 
@@ -341,6 +358,32 @@ the deletion, stdout is `{"deleted": 1234567890}` and stderr
 activity: stdout `{"would_delete": 1234567890}`, stderr
 `garmin: Would delete "Park run" (2026-07-05 07:00).` An activity without a name
 shows as `activity 1234567890`; without a start time, the time is left out.
+
+### activity download
+
+```sh
+garmin activity download 1234567890 --output run.fit
+garmin activity download 1234567890 --format gpx --output run.gpx
+garmin activity download 1234567890 --format gpx --output - | garmin course create --file - --name "Park run"
+```
+
+Saves an activity's recording as a file for another tool. `--format` is `fit`
+(default), `gpx`, `tcx`, `kml` or `csv`; `csv` holds the splits, not the track.
+For `fit`, Garmin sends the original upload as a zip, and garmin-cli writes the FIT
+file inside it, not the zip. `--output` is required. An existing file is
+overwritten; a folder that does not exist exits 2 before logging in. stdout is
+`{"id": 1234567890, "format": "gpx", "file": "run.gpx", "bytes": 48213}` and
+stderr `garmin: Saved activity "Park run" as run.gpx (48213 bytes).` An activity
+without a name shows as `activity 1234567890`.
+
+`--output -` writes the file itself to stdout, with no JSON and no stderr line, so
+it can feed a pipe. When stdout is a terminal, it exits 2 and writes nothing.
+
+The command first reads the activity, so an unknown ID exits 1 and downloads
+nothing. Another account's public activity can be read but not downloaded: it
+exits 1. A manual activity has no recording: it exits 1 for every format. An
+activity uploaded as a GPX or TCX file has no FIT file on Garmin, so `--format fit`
+exits 1 and names the format to use, for example `--format gpx`.
 
 ### workouts
 
@@ -970,7 +1013,8 @@ item types. `stats --raw` and
 
 ## Output and exit codes
 
-Results go to stdout as JSON. Summary floats are rounded to two decimals; `--raw`
+Results go to stdout as JSON, except for `activity download --output -`, which
+writes the downloaded file. Summary floats are rounded to two decimals; `--raw`
 output is not. Errors go to stderr as one line,
 `garmin: <What happened.> <What to do.>`.
 
@@ -990,6 +1034,9 @@ Messages for status 1:
 | `sleep --night-of` night not synced | `garmin: No sleep data for the night of <date> yet. Sync your watch with Garmin Connect, then try again.` |
 | `sleep set` night has no time zone | `garmin: Garmin Connect sent no time zone for the night ending <date>, so garmin-cli cannot convert the times. Adjust the sleep times in the Garmin Connect app.` |
 | `activity <id>` not found | `garmin: No activity with ID <id>. Run 'garmin activities' to list recent IDs.` |
+| `activity download <id>` of a manual activity | `garmin: Activity <id> is a manual entry, so it has no recording to download. Run 'garmin activity <id>' to see it.` |
+| `activity download <id>` of another account's activity | `garmin: Cannot download activity <id>: it belongs to another account. Download your own activities only.` |
+| `activity download <id>` as `fit` of an uploaded GPX file | `garmin: Activity <id> was uploaded as a GPX file, so Garmin has no FIT file for it. Use --format gpx.` |
 | `workout <id>`, `workout edit <id>` or `workout schedule <id>` not found | `garmin: No workout with ID <id>. Run 'garmin workouts' to list IDs.` |
 | `course view <id>` not found | `garmin: No course with ID <id>. Run 'garmin course list' to list IDs.` |
 | `course delete <id>` not found | `garmin: No course with ID <id>. Run 'garmin course list' to list IDs.` |

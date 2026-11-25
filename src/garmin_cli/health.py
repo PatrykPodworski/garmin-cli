@@ -19,6 +19,7 @@ def weight(args: argparse.Namespace, connect: Connect) -> Any:
         for metric in day.get("allWeightMetrics", []):
             records.append(
                 {
+                    "id": metric.get("samplePk"),
                     "date": metric["calendarDate"],
                     "time": wall_clock(metric["date"]).strftime("%H:%M:%S"),
                     "weight_kg": kilograms(metric.get("weight")),
@@ -53,8 +54,8 @@ def blood_pressure(args: argparse.Namespace, connect: Connect) -> Any:
 
 def register(
     subparsers: "argparse._SubParsersAction[argparse.ArgumentParser]",
-) -> argparse.ArgumentParser:
-    """Returns the weight parser, for `weight_add.register` to add `add` under."""
+) -> "argparse._SubParsersAction[argparse.ArgumentParser]":
+    """Returns the `weight` commands, for the write modules to add theirs."""
     weight_parser = subparsers.add_parser("weight", help="weigh-ins in a date range")
     bp_parser = subparsers.add_parser("bp", help="blood pressure in a date range")
     for parser, run in ((weight_parser, weight), (bp_parser, blood_pressure)):
@@ -63,4 +64,5 @@ def register(
             "--raw", action="store_true", help="print the full Garmin response"
         )
         parser.set_defaults(run=run)
-    return weight_parser
+    # Optional, so `garmin weight --from …` lists weigh-ins.
+    return weight_parser.add_subparsers(dest="subcommand", metavar="{add,delete}")

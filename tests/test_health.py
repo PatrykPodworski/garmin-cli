@@ -21,6 +21,7 @@ WEIGH_INS = {
             "summaryDate": "2026-07-05",
             "allWeightMetrics": [
                 {
+                    "samplePk": 1001,
                     "calendarDate": "2026-07-05",
                     # Local wall-clock time encoded as epoch ms.
                     "date": 1783236900000,
@@ -51,6 +52,7 @@ def test_weight_records_per_weigh_in(capsys: pytest.CaptureFixture[str]) -> None
     assert client.calls == [("get_weigh_ins", ("2026-07-01", "2026-07-05"), {})]
     assert records == [
         {
+            "id": 1001,
             "date": "2026-07-05",
             "time": "07:35:00",
             "weight_kg": 70.5,
@@ -59,6 +61,7 @@ def test_weight_records_per_weigh_in(capsys: pytest.CaptureFixture[str]) -> None
             "body_water_pct": 55.2,
         },
         {
+            "id": None,
             "date": "2026-07-05",
             "time": "18:20:00",
             "weight_kg": 71.0,
@@ -67,6 +70,7 @@ def test_weight_records_per_weigh_in(capsys: pytest.CaptureFixture[str]) -> None
             "body_water_pct": None,
         },
     ]
+    assert next(iter(records[0])) == "id"
 
 
 def test_weight_empty_range(capsys: pytest.CaptureFixture[str]) -> None:
