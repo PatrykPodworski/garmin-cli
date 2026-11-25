@@ -106,6 +106,7 @@ BLOOD_PRESSURE = {
             "startDate": "2026-07-05",
             "measurements": [
                 {
+                    "version": 2001,
                     "measurementTimestampLocal": "2026-07-05T08:15:00.0",
                     "systolic": 118,
                     "diastolic": 76,
@@ -133,6 +134,7 @@ def test_bp_records_per_reading(capsys: pytest.CaptureFixture[str]) -> None:
     assert client.calls == [("get_blood_pressure", ("2026-07-01", "2026-07-05"), {})]
     assert records == [
         {
+            "id": 2001,
             "date": "2026-07-05",
             "time": "08:15:00",
             "systolic": 118,
@@ -141,6 +143,7 @@ def test_bp_records_per_reading(capsys: pytest.CaptureFixture[str]) -> None:
             "notes": "after coffee",
         },
         {
+            "id": None,
             "date": "2026-07-05",
             "time": "21:40:30",
             "systolic": 121,
@@ -149,6 +152,7 @@ def test_bp_records_per_reading(capsys: pytest.CaptureFixture[str]) -> None:
             "notes": None,
         },
     ]
+    assert next(iter(records[0])) == "id"
 
 
 def test_bp_empty_range(capsys: pytest.CaptureFixture[str]) -> None:

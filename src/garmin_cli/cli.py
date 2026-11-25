@@ -22,6 +22,7 @@ from garmin_cli import (
     activity_add,
     activity_delete,
     auth,
+    bp_delete,
     course_create,
     course_delete,
     course_send,
@@ -114,10 +115,12 @@ class CliParser(argparse.ArgumentParser):
                 return f"No command given. {self.run_command()}"
             if name == "id":
                 # `garmin activity …`, `garmin workout …`, `garmin course view`,
-                # `garmin pacepro view|edit|delete|send` or `garmin weight delete`
+                # `garmin pacepro view|edit|delete|send`, `garmin weight delete` or
+                # `garmin bp delete`
                 noun = self.prog.split()[1]
                 listing = {
                     "activity": "activities",
+                    "bp": "bp --from DATE --to DATE",
                     "course": "course list",
                     "pacepro": "pacepro list",
                     "weight": "weight --from DATE --to DATE",
@@ -220,9 +223,10 @@ def build_parser() -> CliParser:
         parser.add_subparsers(dest="command", required=True),
     )
     auth.register(subparsers)
-    weight_commands = health.register(subparsers)
+    weight_commands, bp_commands = health.register(subparsers)
     weight_add.register(weight_commands)
     weight_delete.register(weight_commands)
+    bp_delete.register(bp_commands)
     sleep.register(subparsers)
     sleep_set.register(subparsers)
     activities.register(subparsers)
