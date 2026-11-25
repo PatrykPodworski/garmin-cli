@@ -319,13 +319,14 @@ def main(argv: list[str] | None = None, connect: Connect = auth.connect) -> int:
                 # every character, so fall back to \u escapes.
                 print(json.dumps(result, indent=2))
             sys.stdout.flush()
-        except BrokenPipeError:
-            # The reader closed the pipe, as `| head` does. Python flushes stdout
-            # again at exit, so stdout goes to /dev/null to keep that write quiet.
+        except (BrokenPipeError, KeyboardInterrupt) as error:
+            # The reader closed the pipe, as `| head` does, or Ctrl-C stopped a
+            # write to a full pipe, as under `| less`. Python flushes stdout again
+            # at exit, so stdout goes to /dev/null: that write must neither fail
+            # nor block.
             os.dup2(os.open(os.devnull, os.O_WRONLY), sys.stdout.fileno())
-            return 1
-        # Ctrl-C while a full pipe blocks the write, as under `| less`.
-        except KeyboardInterrupt:
+            if isinstance(error, BrokenPipeError):
+                return 1
             message = "Interrupted."
         else:
             return 0

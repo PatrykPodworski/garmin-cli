@@ -494,14 +494,26 @@ def test_closed_pipe_exits_1_quietly(
     assert stdout.read_text() == ""
 
 
+@pytest.mark.parametrize("failing", ["write", "flush"])
 def test_interrupt_while_printing_exits_1_with_one_line(
-    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+    failing: str,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
 ) -> None:
     client = FakeClient(get_stats={"totalSteps": 1})
-    monkeypatch.setattr(sys, "stdout", FailingStdout(1, "write", KeyboardInterrupt))
+    stdout = tmp_path / "stdout"
 
-    assert main(["stats", "--raw"], connect=lambda: client) == 1
+    with stdout.open("w") as file:
+        blocked = FailingStdout(file.fileno(), failing, KeyboardInterrupt)
+        monkeypatch.setattr(sys, "stdout", blocked)
+        assert main(["stats", "--raw"], connect=lambda: client) == 1
+        # Python flushes stdout again at exit; that write must not block on the
+        # full pipe.
+        os.write(file.fileno(), b"flushed at exit")
+
     assert capsys.readouterr().err == "garmin: Interrupted.\n"
+    assert stdout.read_text() == ""
 
 
 def test_error_message_hides_garmintokens(
