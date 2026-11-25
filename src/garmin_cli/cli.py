@@ -24,6 +24,7 @@ from garmin_cli import (
     auth,
     course_create,
     course_delete,
+    course_edit,
     course_send,
     courses,
     devices,
@@ -233,6 +234,7 @@ def build_parser() -> CliParser:
     course_create.register(course_commands)
     course_send.register(course_commands)
     course_delete.register(course_commands)
+    course_edit.register(course_commands)
     pacepro_commands = pacepro.register(subparsers)
     pacepro_create.register(pacepro_commands)
     pacepro_edit.register(pacepro_commands)
