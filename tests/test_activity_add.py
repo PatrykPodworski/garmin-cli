@@ -307,6 +307,23 @@ def test_activity_add_missing_options_exits_2(
     )
 
 
+def test_activity_add_names_only_the_missing_options(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    client = add_client()
+
+    code, err = run_error(
+        ["activity", "add", "--start", "2026-07-05 18:30"], client, capsys
+    )
+
+    assert (code, err) == (
+        2,
+        "garmin: Missing --type, --duration for 'garmin activity add'. "
+        "Run 'garmin activity add --help'.\n",
+    )
+    assert client.calls == []
+
+
 def test_activity_add_garmin_error_exits_1(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
