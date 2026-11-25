@@ -2,7 +2,7 @@
 
 `garmin` reads your Garmin Connect data and prints it as JSON. It can also log a
 weigh-in, adjust a night's sleep times, manage workouts, save GPX files as
-courses, send a course to a watch, and read, create, edit, delete and send PacePro plans. Scripts, agents and people at a terminal can use it. It wraps
+courses, send a course to a watch, delete courses, and read, create, edit, delete and send PacePro plans. Scripts, agents and people at a terminal can use it. It wraps
 [python-garminconnect](https://github.com/cyberjunky/python-garminconnect).
 
 ## Install
@@ -718,6 +718,29 @@ itself, through the library's HTTP client and the same endpoint the library's
 `SendCourseToDevice`). If Garmin changes the message format, the command fails
 with `Garmin Connect rejected the request`.
 
+### course delete
+
+```sh
+garmin course delete 1234567 --dry-run
+garmin course delete 1234567
+```
+
+Deletes a course from Garmin Connect without asking. Take the ID from
+`garmin course list`. Garmin deletes the course's PacePro plans with it, and the
+stderr line names them. The command first reads the course, so an unknown ID fails
+with the `garmin course view` message and deletes nothing. After the deletion,
+stdout is `{"deleted": 1234567}` and stderr
+`garmin: Deleted course "Hill repeats" and its PacePro plan "Hill repeats 10k".`
+With two or more plans the line ends
+`and its 2 PacePro plans "Hill repeats 10k", "Hill repeats 5k".` and without plans
+it ends after the course. `--dry-run` only reads the course and the plans: stdout
+`{"would_delete": 1234567}`, stderr `garmin: Would delete course "Hill repeats" …`.
+A course without a name shows as `course 1234567`, a plan without a name as its ID.
+
+For a few minutes after a course is saved, Garmin refuses to delete it, and the
+command exits 1 with
+`garmin: Garmin is still processing course <id> after a change. Try again in a few minutes.`
+
 ### pacepro list
 
 ```sh
@@ -965,6 +988,8 @@ Messages for status 1:
 | `activity <id>` not found | `garmin: No activity with ID <id>. Run 'garmin activities' to list recent IDs.` |
 | `workout <id>`, `workout edit <id>` or `workout schedule <id>` not found | `garmin: No workout with ID <id>. Run 'garmin workouts' to list IDs.` |
 | `course view <id>` not found | `garmin: No course with ID <id>. Run 'garmin course list' to list IDs.` |
+| `course delete <id>` not found | `garmin: No course with ID <id>. Run 'garmin course list' to list IDs.` |
+| `course delete <id>` course saved minutes ago | `garmin: Garmin is still processing course <id> after a change. Try again in a few minutes.` |
 | `course send <id>` course not found | `garmin: No course with ID <id>. Run 'garmin course list' to list IDs.` |
 | `course send --device <id>` device not found | `garmin: No device with ID <id>. Run 'garmin device list' to list IDs.` |
 | `pacepro create --course <id>` course not found | `garmin: No course with ID <id>. Run 'garmin course list' to list IDs.` |
