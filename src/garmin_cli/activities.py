@@ -1,14 +1,24 @@
 import argparse
 import difflib
+import io
+import sys
+import zipfile
 from collections.abc import Callable, Collection
 from datetime import date
+from pathlib import Path, PurePosixPath
 from typing import Any, NoReturn
 
-from garminconnect import GarminConnectNotFoundError
+from garminconnect import (
+    Garmin,
+    GarminConnectAuthenticationError,
+    GarminConnectConnectionError,
+    GarminConnectNotFoundError,
+)
 
 from garmin_cli.client import Connect, GarminClient
 from garmin_cli.dates import add_range_arguments
-from garmin_cli.errors import GarminCliError
+from garmin_cli.errors import ISSUES, GarminCliError, client_error
+from garmin_cli.output import NO_STDOUT
 
 # Output name -> Garmin key. A list item and a detail `summaryDTO` name the
 # aerobic training effect differently, so either key fills `aerobic_te`.
@@ -25,6 +35,15 @@ FIELDS = {
     "aerobic_te": ("aerobicTrainingEffect", "trainingEffect"),
     "anaerobic_te": ("anaerobicTrainingEffect",),
     "vo2max": ("vO2MaxValue",),
+}
+
+# `fit` is Garmin's original upload, a zip that holds one file.
+DOWNLOAD_FORMATS = {
+    "fit": Garmin.ActivityDownloadFormat.ORIGINAL,
+    "gpx": Garmin.ActivityDownloadFormat.GPX,
+    "tcx": Garmin.ActivityDownloadFormat.TCX,
+    "kml": Garmin.ActivityDownloadFormat.KML,
+    "csv": Garmin.ActivityDownloadFormat.CSV,
 }
 
 
@@ -58,6 +77,14 @@ def activity_id(value: str) -> str:
             f"Invalid activity ID '{value}'. Run 'garmin activities' to list IDs."
         )
     return str(number)
+
+
+def download_format(value: str) -> str:
+    if value not in DOWNLOAD_FORMATS:
+        raise argparse.ArgumentTypeError(
+            f"Invalid --format '{value}'. Use fit, gpx, tcx, kml or csv."
+        )
+    return value
 
 
 def require_type(
@@ -141,6 +168,83 @@ def activity(args: argparse.Namespace, connect: Connect) -> Any:
     return result
 
 
+def fit_file(original: bytes, activity_id: str) -> bytes:
+    """The FIT file inside Garmin's original download."""
+    try:
+        archive = zipfile.ZipFile(io.BytesIO(original))
+        [entry] = archive.infolist()
+    except (zipfile.BadZipFile, ValueError):
+        raise GarminCliError(
+            f"Garmin sent no FIT file for activity {activity_id}.",
+            f"Rerun with --debug and report it at {ISSUES}.",
+        ) from None
+    kind = PurePosixPath(entry.filename).suffix.removeprefix(".").lower()
+    if kind != "fit":
+        use = kind if kind in DOWNLOAD_FORMATS else "gpx"
+        raise GarminCliError(
+            f"Activity {activity_id} was uploaded as a {kind.upper()} file, so "
+            "Garmin has no FIT file for it.",
+            f"Use --format {use}.",
+        )
+    return archive.read(entry)
+
+
+def activity_download(args: argparse.Namespace, connect: Connect) -> Any:
+    fail: Callable[[str], NoReturn] = args.parser.fail
+    if args.output == "-":
+        if sys.stdout.isatty():
+            fail(
+                "--output - writes the file to stdout, which is a terminal. "
+                "Pipe it to another command, or give a file name."
+            )
+    elif not (folder := Path(args.output).parent).is_dir():
+        fail(
+            f"Cannot write '{args.output}': folder '{folder}' does not exist. "
+            "Give a path in an existing folder."
+        )
+    client = connect()
+    summary = fetch_activity(client, args.id)
+    if (summary.get("metadataDTO") or {}).get("manualActivity"):
+        raise GarminCliError(
+            f"Activity {args.id} is a manual entry, so it has no recording to "
+            "download.",
+            f"Run 'garmin activity {args.id}' to see it.",
+        )
+    try:
+        data = client.download_activity(args.id, dl_fmt=DOWNLOAD_FORMATS[args.format])
+    except (GarminConnectAuthenticationError, GarminConnectConnectionError) as error:
+        # The read above worked with this login, so a 401 (garminconnect raises it
+        # as an authentication error) or a 403 here means the activity is another
+        # account's: this one can view it but not download it.
+        if (
+            not isinstance(error, GarminConnectAuthenticationError)
+            and client_error(error) != 403
+        ):
+            raise
+        raise GarminCliError(
+            f"Cannot download activity {args.id}: it belongs to another account.",
+            "Download your own activities only.",
+        ) from None
+    if args.format == "fit":
+        data = fit_file(data, args.id)
+    if args.output == "-":
+        sys.stdout.buffer.write(data)
+        return NO_STDOUT
+    Path(args.output).write_bytes(data)
+    name = summary.get("activityName")
+    what = f'"{name}"' if name is not None else args.id
+    print(
+        f"garmin: Saved activity {what} as {args.output} ({len(data)} bytes).",
+        file=sys.stderr,
+    )
+    return {
+        "id": int(args.id),
+        "format": args.format,
+        "file": args.output,
+        "bytes": len(data),
+    }
+
+
 def register(subparsers: "argparse._SubParsersAction[argparse.ArgumentParser]") -> None:
     activities_parser = subparsers.add_parser(
         "activities", help="recent activities, newest first"
@@ -160,9 +264,10 @@ def register(subparsers: "argparse._SubParsersAction[argparse.ArgumentParser]") 
     activity_parser = subparsers.add_parser(
         "activity",
         help="one activity with laps and HR zones",
-        epilog="'garmin activity add' creates a manual activity on Garmin Connect "
-        "and 'garmin activity delete' deletes one. Run 'garmin activity add --help' "
-        "or 'garmin activity delete --help' for their options.",
+        epilog="'garmin activity add' creates a manual activity on Garmin Connect, "
+        "'garmin activity delete' deletes one and 'garmin activity download' saves "
+        "its recording as a file. Run 'garmin activity add --help', 'garmin activity "
+        "delete --help' or 'garmin activity download --help' for their options.",
     )
     activity_parser.add_argument(
         "id", type=activity_id, help="activity ID from 'garmin activities'"
@@ -171,3 +276,25 @@ def register(subparsers: "argparse._SubParsersAction[argparse.ArgumentParser]") 
         "--raw", action="store_true", help="print the full Garmin response"
     )
     activity_parser.set_defaults(run=activity)
+    # `main` joins `garmin activity download` into this one command name. Without a
+    # `help`, `garmin --help` leaves it out; `garmin activity --help` names it.
+    download_parser = subparsers.add_parser(
+        "activity download",
+        description="Saves an activity's recording as a FIT, GPX, TCX, KML or CSV "
+        "file. --output - writes it to stdout for a pipe.",
+    )
+    download_parser.add_argument(
+        "id", type=activity_id, help="activity ID from 'garmin activities'"
+    )
+    download_parser.add_argument(
+        "--format",
+        type=download_format,
+        default="fit",
+        help="fit (default, the original file), gpx, tcx, kml or csv",
+    )
+    download_parser.add_argument(
+        "--output",
+        required=True,
+        help="file to write, overwritten if it exists; - for stdout",
+    )
+    download_parser.set_defaults(run=activity_download, parser=download_parser)
