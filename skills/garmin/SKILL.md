@@ -1,6 +1,6 @@
 ---
 name: garmin
-description: Use when the user asks about their Garmin data — workouts (runs, rides), sleep or sleep score, weight, body fat, blood pressure, calories burned, resting heart rate, body battery, stress, training readiness, training status, training load, recovery time or HRV status — or asks to adjust a night's sleep times, log or delete a weigh-in, delete a blood pressure reading, add a manual activity, delete an activity, download an activity as a FIT or GPX file, find a workout in their workout library, create or change a structured running workout, create a strength workout with exercises, sets, reps and weights, look up a strength exercise name, delete a workout, put a workout on their calendar, take it off or see what is scheduled, save a GPX file as a course, list or look up their courses, rename a course or change its privacy, send a course to their watch, delete a course, list, look up or delete their PacePro pacing plans, create a PacePro plan from a course, rename a PacePro plan or change its goal time or pace, send a PacePro plan to their watch, or list their devices.
+description: Use when the user asks about their Garmin data — workouts (runs, rides), sleep or sleep score, weight, body fat, blood pressure, calories burned, resting heart rate, body battery, stress, training readiness, training status, training load, recovery time or HRV status — or asks to adjust a night's sleep times, log or delete a weigh-in, delete a blood pressure reading, add a manual activity, upload a FIT, GPX or TCX activity file, delete an activity, download an activity as a FIT or GPX file, find a workout in their workout library, create or change a structured running workout, create a strength workout with exercises, sets, reps and weights, look up a strength exercise name, delete a workout, put a workout on their calendar, take it off or see what is scheduled, save a GPX file as a course, list or look up their courses, rename a course or change its privacy, send a course to their watch, delete a course, list, look up or delete their PacePro pacing plans, create a PacePro plan from a course, rename a PacePro plan or change its goal time or pace, send a PacePro plan to their watch, or list their devices.
 ---
 
 # garmin
@@ -40,6 +40,7 @@ garmin bp delete ID --date DATE [--dry-run]  # delete a reading; id and date fro
 garmin activities --limit 5 --type running --from DATE --to DATE  # newest first, default limit 20
 garmin activity ID                     # one activity with laps and HR zones; ID from `activities`
 garmin activity add --type KEY --start "YYYY-MM-DD HH:MM" --duration MIN [--distance KM] [--calories KCAL] [--name NAME]  # private manual activity
+garmin activity add --file FILE        # upload a FIT, GPX or TCX file; `-` reads stdin; no other options
 garmin activity delete ID [--dry-run]  # delete an activity; ID from `activities`
 garmin activity download ID [--format fit|gpx|tcx|kml|csv] --output FILE  # save the recording as a file (default fit); --output - writes it to stdout for a pipe
 garmin workouts --limit 50              # workout library, newest created first, default limit 20
@@ -94,8 +95,10 @@ garmin device list                      # devices on the account: id, name, mode
   `garmin bp delete ID --date DATE --dry-run`, and confirm the match with the user
   first.
 - `garmin activity add` writes to the user's Garmin account. Run it only with the
-  type, start and duration the user gave you. After a failed run, check
-  `garmin activities` before retrying, so the activity is not created twice.
+  type, start and duration the user gave you, or with `--file` for a file the user
+  asked you to upload. After a failed run, check `garmin activities` before
+  retrying, so the activity is not created twice. A file Garmin already has exits 1
+  and names the existing activity's ID.
 - `garmin activity delete` deletes without asking and cannot be undone. Run it only
   for an activity the user asked you to delete. When the user names the activity by
   date or name instead of ID, look up its ID with `garmin activities`, run

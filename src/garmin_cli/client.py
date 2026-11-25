@@ -1,5 +1,5 @@
 from collections.abc import Callable
-from typing import Any, Protocol
+from typing import Any, Protocol, overload
 
 
 class HttpClient(Protocol):
@@ -9,6 +9,7 @@ class HttpClient(Protocol):
         self, _domain: str, _path: str, /, *, json: dict[str, Any], api: bool
     ) -> Any: ...
 
+    @overload
     def post(
         self,
         _domain: str,
@@ -18,6 +19,13 @@ class HttpClient(Protocol):
         json: list[dict[str, Any]] | dict[str, Any] | None = None,
         api: bool,
     ) -> Any: ...
+
+    @overload
+    def post(
+        self, _domain: str, _path: str, /, *, files: dict[str, tuple[str, bytes]]
+    ) -> Any: ...
+
+    def request(self, _method: str, _domain: str, _path: str, /) -> Any: ...
 
     def delete(self, _domain: str, _path: str, /, *, api: bool) -> Any: ...
 

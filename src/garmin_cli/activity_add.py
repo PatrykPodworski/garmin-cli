@@ -3,9 +3,21 @@ import math
 from typing import Any
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
+from garmin_cli import activity_upload
 from garmin_cli.activities import activity, require_type
 from garmin_cli.client import Connect
 from garmin_cli.dates import local_time_zone, parse_datetime
+
+MANUAL = (
+    "--type",
+    "--start",
+    "--duration",
+    "--distance",
+    "--calories",
+    "--name",
+    "--tz",
+)
+REQUIRED = MANUAL[:3]
 
 
 def minutes(value: str) -> int:
@@ -45,6 +57,13 @@ def kilocalories(value: str) -> float:
 
 
 def add_activity(args: argparse.Namespace, connect: Connect) -> Any:
+    given = [option for option in MANUAL if getattr(args, option[2:]) is not None]
+    if args.file is not None:
+        if given:
+            args.parser.error(f"argument {given[0]}: not allowed with argument --file")
+        return activity_upload.upload(args, connect)
+    if missing := [option for option in REQUIRED if option not in given]:
+        args.parser.error(f"the following arguments are required: {', '.join(missing)}")
     time_zone = args.tz or local_time_zone() or ""
     if not time_zone:
         args.parser.fail(
@@ -65,7 +84,7 @@ def add_activity(args: argparse.Namespace, connect: Connect) -> Any:
     # calories: without them Garmin estimates far fewer than its web form does.
     summary: dict[str, Any] = {
         "startTimeLocal": args.start.isoformat(timespec="milliseconds"),
-        "distance": args.distance * 1000,
+        "distance": (args.distance or 0.0) * 1000,
         "duration": args.duration * 60,
     }
     if args.calories is not None:
@@ -91,26 +110,28 @@ def register(subparsers: "argparse._SubParsersAction[argparse.ArgumentParser]") 
     # `help`, `garmin --help` leaves it out; `garmin activity --help` names it.
     add_parser = subparsers.add_parser(
         "activity add",
-        description="Creates a private manual activity on Garmin Connect and "
-        "prints it as 'garmin activity ID' does.",
+        description="Creates a private manual activity on Garmin Connect, or "
+        "uploads a FIT, GPX or TCX file with --file, and prints the activity as "
+        "'garmin activity ID' does.",
+    )
+    add_parser.add_argument(
+        "--file",
+        help="FIT, GPX or TCX file to upload, or - for stdin; leave out the other "
+        "options",
     )
     add_parser.add_argument(
         "--type",
-        required=True,
         help="Garmin type key: running, cycling, strength_training, ...",
     )
     add_parser.add_argument(
         "--start",
-        required=True,
         type=parse_datetime,
         metavar="'YYYY-MM-DD HH:MM'",
         help="local start time",
     )
+    add_parser.add_argument("--duration", type=minutes, help="whole minutes")
     add_parser.add_argument(
-        "--duration", required=True, type=minutes, help="whole minutes"
-    )
-    add_parser.add_argument(
-        "--distance", type=kilometers, default=0.0, help="kilometers (default: 0)"
+        "--distance", type=kilometers, help="kilometers (default: 0)"
     )
     add_parser.add_argument(
         "--calories",

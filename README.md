@@ -348,6 +348,8 @@ is not a whole number of 1 or more exits with status 2 before logging in:
 garmin activity add --type strength_training --start "2026-07-05 18:30" --duration 45
 garmin activity add --type running --start "2026-07-05 07:00" --duration 30 --distance 5.2 --name "Park run"
 garmin activity add --type walking --start "2026-07-05 12:00" --duration 65 --distance 4.3 --calories 266.7
+garmin activity add --file morning-run.fit
+cat ride.gpx | garmin activity add --file -
 ```
 
 Creates a private manual activity on Garmin Connect, for example a gym session or a
@@ -359,6 +361,19 @@ with status 2 and suggests the closest one. `--start` is local
 Garmin estimates them, often far below its web form's value. `--name` defaults to the type, like `Strength Training`. The time zone
 is the machine's, from `TZ` or the `/etc/localtime` link; `--tz Europe/Warsaw`
 overrides it, and a machine without one exits with status 2 and asks for `--tz`.
+
+`--file FILE` uploads a FIT, GPX or TCX file instead, for example an activity
+recorded by another app or device; `--file -` reads stdin. The file brings its own
+type, time, track and heart rate, so `--file` takes none of the other options:
+mixing them exits with status 2. garmin-cli tells the format from the content, not
+the extension, and exits with status 2 before it calls Garmin when the file cannot
+be read or is not FIT, GPX or TCX. After the upload it waits up to 30 seconds for
+Garmin to process the file, then prints the new activity as `garmin activity` does,
+and stderr gets `garmin: Uploaded 'morning-run.fit' as activity 1234567890.` When
+Garmin is still processing, stdout is `{"upload_id": 555, "file": "morning-run.fit"}`,
+stderr says to look in `garmin activities` in a minute, and the exit status is 0. A
+file Garmin already has exits with status 1:
+`garmin: 'morning-run.fit' is already on Garmin Connect as activity 1234567890. Run 'garmin activity 1234567890' to see it.`
 
 ### activity delete
 
