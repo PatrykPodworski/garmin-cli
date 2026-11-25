@@ -197,6 +197,7 @@ garmin weight --from 2026-07-01 --to 2026-07-05
 ```json
 [
   {
+    "id": 1752345678901,
     "date": "2026-07-05",
     "time": "07:35:00",
     "weight_kg": 72.4,
@@ -207,7 +208,8 @@ garmin weight --from 2026-07-01 --to 2026-07-05
 ]
 ```
 
-One record per weigh-in, with local time. A scale that does not measure body
+One record per weigh-in, with local time. `id` is the ID `weight delete` takes.
+A scale that does not measure body
 composition leaves those fields `null`. A range with no weigh-ins prints `[]`.
 
 `weight add` logs a manual weigh-in and prints what it logged:
@@ -220,6 +222,21 @@ garmin weight add 82.4 --at "2026-07-05 07:30"   # local time
 ```
 
 `--at` takes only `YYYY-MM-DD HH:MM`, because a weigh-in needs a time.
+
+`weight delete` deletes a weigh-in from Garmin Connect without asking. Garmin
+cannot edit a weigh-in, so to correct one, delete it and add it again.
+
+```sh
+garmin weight delete 1752345678901 --date 2026-07-05 --dry-run
+garmin weight delete 1752345678901 --date 2026-07-05
+```
+
+Take the `id` and the `date` from `garmin weight`. The command first reads the
+weigh-ins of `--date`, so an ID that is not on that date exits with status 1 and
+deletes nothing. After the deletion, stdout is `{"deleted": 1752345678901}` and stderr
+`garmin: Deleted the weigh-in of 2026-07-05 07:35 (72.4 kg).` `--dry-run` only reads
+the weigh-ins: stdout `{"would_delete": 1752345678901}`, stderr
+`garmin: Would delete the weigh-in of 2026-07-05 07:35 (72.4 kg).`
 
 ### bp
 

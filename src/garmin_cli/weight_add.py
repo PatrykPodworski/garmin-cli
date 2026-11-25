@@ -43,10 +43,8 @@ def add_weight(args: argparse.Namespace, connect: Connect) -> Any:
     return {"date": day, "time": time, "weight": args.weight, "unit": args.unit}
 
 
-def register(weight_parser: argparse.ArgumentParser) -> None:
-    add_parser = weight_parser.add_subparsers(dest="subcommand").add_parser(
-        "add", help="log a weigh-in"
-    )
+def register(commands: "argparse._SubParsersAction[argparse.ArgumentParser]") -> None:
+    add_parser = commands.add_parser("add", help="log a weigh-in")
     add_parser.add_argument("weight", type=positive_weight, help="e.g. 82.4")
     add_parser.add_argument(
         "--at",
