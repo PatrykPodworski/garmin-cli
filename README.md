@@ -964,10 +964,14 @@ Messages for status 1:
 | Tokens expired | `garmin: Not logged in: no valid saved login in ~/.garminconnect. Run 'garmin login'.` |
 | Unreadable response | `garmin: Garmin Connect sent a response garmin-cli could not read. Try again in a few minutes; if it keeps failing, rerun with --debug and report it at https://github.com/PatrykPodworski/garmin-cli/issues.` |
 | Network failure | `garmin: Could not reach Garmin Connect (<reason>). Check your internet connection and try again.` |
+| Ctrl-C | `garmin: Interrupted.` |
 | Bug in garmin-cli | `garmin: Unexpected error (<reason>). Rerun with --debug and report it at https://github.com/PatrykPodworski/garmin-cli/issues.` |
 
 `<reason>` is `<error type>: <first line of the message>`, with URL query strings
 shortened to `?…`, `Bearer` values to `Bearer …`, and the whole cut to 100 characters.
+
+When the reader of stdout closes the pipe early, as `garmin … | head` does,
+`garmin` stops writing and exits 1 without a message.
 
 `garmin --debug <command>` prints the full Python traceback for an unexpected error
 instead of the one-line message.

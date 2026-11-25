@@ -1,5 +1,7 @@
 import io
+import os
 import sys
+from pathlib import Path
 from typing import Any
 
 import pytest
@@ -435,11 +437,83 @@ def test_debug_keeps_expected_error_message(
     assert capsys.readouterr().err == "garmin: Not synced. Sync it.\n"
 
 
-def test_keyboard_interrupt_is_not_caught() -> None:
+def test_interrupt_exits_1_with_one_line(capsys: pytest.CaptureFixture[str]) -> None:
     client: Any = RaisingClient(KeyboardInterrupt())
 
-    with pytest.raises(KeyboardInterrupt):
-        main(["stats"], connect=lambda: client)
+    assert main(["stats"], connect=lambda: client) == 1
+    out = capsys.readouterr()
+    assert out.err == "garmin: Interrupted.\n"
+    assert out.out == ""
+
+
+class FailingStdout(io.StringIO):
+    """A stdout whose `write` or `flush` raises `error` once. A closed pipe, as with
+    `garmin … | head`, fails on the flush for a small result and already on the
+    write for a large one. Ctrl-C hits the write while a full pipe blocks it, as
+    with `garmin … | less`."""
+
+    def __init__(self, fd: int, failing: str, error: type[BaseException]) -> None:
+        super().__init__()
+        self.fd = fd
+        self.failing = failing
+        self.error = error
+
+    def write(self, text: str) -> int:
+        if self.failing == "write":
+            self.failing = ""
+            raise self.error
+        return super().write(text)
+
+    def flush(self) -> None:
+        if self.failing == "flush":
+            self.failing = ""
+            raise self.error
+
+    def fileno(self) -> int:
+        return self.fd
+
+
+@pytest.mark.parametrize("failing", ["write", "flush"])
+def test_closed_pipe_exits_1_quietly(
+    failing: str,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    client = FakeClient(get_stats={"totalSteps": 1})
+    stdout = tmp_path / "stdout"
+
+    with stdout.open("w") as file:
+        closed = FailingStdout(file.fileno(), failing, BrokenPipeError)
+        monkeypatch.setattr(sys, "stdout", closed)
+        assert main(["stats", "--raw"], connect=lambda: client) == 1
+        # Python flushes stdout again at exit; that write must not reach the pipe.
+        os.write(file.fileno(), b"flushed at exit")
+
+    assert capsys.readouterr().err == ""
+    assert stdout.read_text() == ""
+
+
+@pytest.mark.parametrize("failing", ["write", "flush"])
+def test_interrupt_while_printing_exits_1_with_one_line(
+    failing: str,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    client = FakeClient(get_stats={"totalSteps": 1})
+    stdout = tmp_path / "stdout"
+
+    with stdout.open("w") as file:
+        blocked = FailingStdout(file.fileno(), failing, KeyboardInterrupt)
+        monkeypatch.setattr(sys, "stdout", blocked)
+        assert main(["stats", "--raw"], connect=lambda: client) == 1
+        # Python flushes stdout again at exit; that write must not block on the
+        # full pipe.
+        os.write(file.fileno(), b"flushed at exit")
+
+    assert capsys.readouterr().err == "garmin: Interrupted.\n"
+    assert stdout.read_text() == ""
 
 
 def test_error_message_hides_garmintokens(

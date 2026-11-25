@@ -299,6 +299,8 @@ def main(argv: list[str] | None = None, connect: Connect = auth.connect) -> int:
                 f"Could not reach Garmin Connect ({reason(error)}). "
                 "Check your internet connection and try again."
             )
+    except KeyboardInterrupt:
+        message = "Interrupted."
     except Exception as error:
         if args.debug:
             raise
@@ -310,11 +312,23 @@ def main(argv: list[str] | None = None, connect: Connect = auth.connect) -> int:
         if not getattr(args, "raw", False):
             result = round_floats(result)
         try:
-            print(json.dumps(result, indent=2, ensure_ascii=False))
-        except UnicodeEncodeError:
-            # A stdout in a legacy code page (cp1252 on Windows) cannot hold
-            # every character, so fall back to \u escapes.
-            print(json.dumps(result, indent=2))
-        return 0
+            try:
+                print(json.dumps(result, indent=2, ensure_ascii=False))
+            except UnicodeEncodeError:
+                # A stdout in a legacy code page (cp1252 on Windows) cannot hold
+                # every character, so fall back to \u escapes.
+                print(json.dumps(result, indent=2))
+            sys.stdout.flush()
+        except (BrokenPipeError, KeyboardInterrupt) as error:
+            # The reader closed the pipe, as `| head` does, or Ctrl-C stopped a
+            # write to a full pipe, as under `| less`. Python flushes stdout again
+            # at exit, so stdout goes to /dev/null: that write must neither fail
+            # nor block.
+            os.dup2(os.open(os.devnull, os.O_WRONLY), sys.stdout.fileno())
+            if isinstance(error, BrokenPipeError):
+                return 1
+            message = "Interrupted."
+        else:
+            return 0
     print(f"garmin: {message}", file=sys.stderr)
     return 1
