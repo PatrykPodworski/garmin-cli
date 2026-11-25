@@ -1,7 +1,7 @@
 # garmin-cli
 
 `garmin` reads your Garmin Connect data and prints it as JSON. It can also log a
-weigh-in, adjust a night's sleep times, manage workouts, save GPX files as
+weigh-in or a blood pressure reading, adjust a night's sleep times, manage workouts, save GPX files as
 courses, send a course to a watch, rename courses or change their privacy, delete
 courses, and read, create, edit, delete and send PacePro plans. Scripts, agents and people at a terminal can use it. It wraps
 [python-garminconnect](https://github.com/cyberjunky/python-garminconnect).
@@ -262,6 +262,20 @@ garmin bp --from yesterday  # --to defaults to today
 
 One record per reading, with local time. `id` is the ID `bp delete` takes. A range
 with no readings prints `[]`.
+
+`bp create` logs a manual reading. It takes systolic and diastolic pressure in mmHg,
+whole numbers from 70 to 260 and from 40 to 150. `--pulse` is optional, from 20 to 250.
+
+```sh
+garmin bp create 121 79                                    # now
+garmin bp create 121 79 --pulse 61 --at "2026-07-05 08:15" --notes "after coffee"
+```
+
+`--at` is local time and takes only `YYYY-MM-DD HH:MM`. After the write, the command
+reads the readings of that date and prints the stored one, with its `id`. stderr gets
+`garmin: Logged blood pressure 121/79, pulse 61, at 2026-07-05 08:15.` When Garmin
+does not list the reading yet, stdout is the reading Garmin answered with, and its
+`id` is `null`.
 
 `bp delete` deletes a reading from Garmin Connect without asking. Garmin cannot
 change the values of a reading, so to correct one, delete it and add it again.

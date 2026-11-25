@@ -195,7 +195,7 @@ def test_bp_delete_garmin_error_exits_1(capsys: pytest.CaptureFixture[str]) -> N
     )
 
 
-def test_bp_unknown_command_lists_delete(capsys: pytest.CaptureFixture[str]) -> None:
+def test_bp_unknown_command_lists_commands(capsys: pytest.CaptureFixture[str]) -> None:
     client = delete_client()
 
     result = run(["bp", "120"], client, capsys)
@@ -203,7 +203,8 @@ def test_bp_unknown_command_lists_delete(capsys: pytest.CaptureFixture[str]) -> 
     assert result == (
         2,
         "",
-        "garmin: Unknown command '120'. Run 'garmin bp <command>', one of: delete.\n",
+        "garmin: Unknown command '120'. Run 'garmin bp <command>', one of: create, "
+        "delete.\n",
     )
     assert client.calls == []
 

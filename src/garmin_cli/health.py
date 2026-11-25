@@ -73,5 +73,5 @@ def register(
     # Optional, so `garmin weight --from …` and `garmin bp --from …` list records.
     return (
         weight_parser.add_subparsers(dest="subcommand", metavar="{add,delete}"),
-        bp_parser.add_subparsers(dest="subcommand", metavar="{delete}"),
+        bp_parser.add_subparsers(dest="subcommand", metavar="{create,delete}"),
     )
