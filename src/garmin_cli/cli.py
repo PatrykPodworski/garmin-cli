@@ -48,11 +48,11 @@ from garmin_cli import (
     workouts,
 )
 from garmin_cli.client import Connect
-from garmin_cli.errors import GarminCliError
+from garmin_cli.errors import ISSUES, GarminCliError, client_error
+from garmin_cli.output import NO_STDOUT
 
 REQUIRED = "the following arguments are required: "
 CONFLICT = "not allowed with argument "
-ISSUES = "https://github.com/PatrykPodworski/garmin-cli/issues"
 RATE_LIMITED = (
     "Garmin is rate-limiting requests from this machine. "
     "Wait a few minutes and try again."
@@ -188,14 +188,6 @@ def reason(error: BaseException) -> str:
     return text[:100]
 
 
-def client_error(error: BaseException) -> int | None:
-    """The 4xx status Garmin answered with. garminconnect puts it only in the
-    message, as `API Error <status>`; a 5xx or a network failure has none."""
-    if match := re.search(r"API Error (4\d\d)\b", str(error)):
-        return int(match[1])
-    return None
-
-
 def round_floats(value: Any) -> Any:
     if isinstance(value, float):
         return round(value, 2)
@@ -318,12 +310,13 @@ def main(argv: list[str] | None = None, connect: Connect = auth.connect) -> int:
         if not getattr(args, "raw", False):
             result = round_floats(result)
         try:
-            try:
-                print(json.dumps(result, indent=2, ensure_ascii=False))
-            except UnicodeEncodeError:
-                # A stdout in a legacy code page (cp1252 on Windows) cannot hold
-                # every character, so fall back to \u escapes.
-                print(json.dumps(result, indent=2))
+            if result is not NO_STDOUT:
+                try:
+                    print(json.dumps(result, indent=2, ensure_ascii=False))
+                except UnicodeEncodeError:
+                    # A stdout in a legacy code page (cp1252 on Windows) cannot
+                    # hold every character, so fall back to \u escapes.
+                    print(json.dumps(result, indent=2))
             sys.stdout.flush()
         except (BrokenPipeError, KeyboardInterrupt) as error:
             # The reader closed the pipe, as `| head` does, or Ctrl-C stopped a
