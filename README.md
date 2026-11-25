@@ -249,6 +249,7 @@ garmin bp --from yesterday  # --to defaults to today
 ```json
 [
   {
+    "id": 1752345679012,
     "date": "2026-07-05",
     "time": "08:15:00",
     "systolic": 120,
@@ -259,7 +260,23 @@ garmin bp --from yesterday  # --to defaults to today
 ]
 ```
 
-One record per reading, with local time. A range with no readings prints `[]`.
+One record per reading, with local time. `id` is the ID `bp delete` takes. A range
+with no readings prints `[]`.
+
+`bp delete` deletes a reading from Garmin Connect without asking. Garmin cannot
+change the values of a reading, so to correct one, delete it and add it again.
+
+```sh
+garmin bp delete 1752345679012 --date 2026-07-05 --dry-run
+garmin bp delete 1752345679012 --date 2026-07-05
+```
+
+Take the `id` and the `date` from `garmin bp`. The command first reads the readings
+of `--date`, so an ID that is not on that date exits with status 1 and deletes
+nothing. After the deletion, stdout is `{"deleted": 1752345679012}` and stderr
+`garmin: Deleted the reading of 2026-07-05 08:15 (120/78).` `--dry-run` only reads
+the readings: stdout `{"would_delete": 1752345679012}`, stderr
+`garmin: Would delete the reading of 2026-07-05 08:15 (120/78).`
 
 ### activities
 

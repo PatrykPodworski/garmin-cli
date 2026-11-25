@@ -31,31 +31,37 @@ def weight(args: argparse.Namespace, connect: Connect) -> Any:
     return records
 
 
+def bp_record(reading: dict[str, Any]) -> dict[str, Any]:
+    day_part, time_part = reading["measurementTimestampLocal"].split("T")
+    return {
+        "id": reading.get("version"),
+        "date": day_part,
+        "time": time_part[:8],
+        "systolic": reading.get("systolic"),
+        "diastolic": reading.get("diastolic"),
+        "pulse": reading.get("pulse"),
+        "notes": reading.get("notes"),
+    }
+
+
 def blood_pressure(args: argparse.Namespace, connect: Connect) -> Any:
     data = connect().get_blood_pressure(args.start.isoformat(), args.end.isoformat())
     if args.raw:
         return data
-    records = []
-    for day in data.get("measurementSummaries", []):
-        for reading in day.get("measurements", []):
-            day_part, time_part = reading["measurementTimestampLocal"].split("T")
-            records.append(
-                {
-                    "date": day_part,
-                    "time": time_part[:8],
-                    "systolic": reading.get("systolic"),
-                    "diastolic": reading.get("diastolic"),
-                    "pulse": reading.get("pulse"),
-                    "notes": reading.get("notes"),
-                }
-            )
-    return records
+    return [
+        bp_record(reading)
+        for day in data.get("measurementSummaries", [])
+        for reading in day.get("measurements", [])
+    ]
 
 
 def register(
     subparsers: "argparse._SubParsersAction[argparse.ArgumentParser]",
-) -> "argparse._SubParsersAction[argparse.ArgumentParser]":
-    """Returns the `weight` commands, for the write modules to add theirs."""
+) -> tuple[
+    "argparse._SubParsersAction[argparse.ArgumentParser]",
+    "argparse._SubParsersAction[argparse.ArgumentParser]",
+]:
+    """Returns the `weight` and `bp` commands, for the write modules to add theirs."""
     weight_parser = subparsers.add_parser("weight", help="weigh-ins in a date range")
     bp_parser = subparsers.add_parser("bp", help="blood pressure in a date range")
     for parser, run in ((weight_parser, weight), (bp_parser, blood_pressure)):
@@ -64,5 +70,8 @@ def register(
             "--raw", action="store_true", help="print the full Garmin response"
         )
         parser.set_defaults(run=run)
-    # Optional, so `garmin weight --from …` lists weigh-ins.
-    return weight_parser.add_subparsers(dest="subcommand", metavar="{add,delete}")
+    # Optional, so `garmin weight --from …` and `garmin bp --from …` list records.
+    return (
+        weight_parser.add_subparsers(dest="subcommand", metavar="{add,delete}"),
+        bp_parser.add_subparsers(dest="subcommand", metavar="{delete}"),
+    )
