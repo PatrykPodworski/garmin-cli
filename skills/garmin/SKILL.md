@@ -1,13 +1,13 @@
 ---
 name: garmin
-description: Use when the user asks about their Garmin data — workouts (runs, rides), sleep or sleep score, weight, body fat, blood pressure, calories burned, resting heart rate, body battery, stress, training readiness, training status, training load, recovery time or HRV status — or asks to adjust a night's sleep times, log or delete a weigh-in, delete a blood pressure reading, add a manual activity, upload a FIT, GPX or TCX activity file, delete an activity, download an activity as a FIT or GPX file, find a workout in their workout library, create or change a structured running workout, create a strength workout with exercises, sets, reps and weights, look up a strength exercise name, delete a workout, put a workout on their calendar, take it off or see what is scheduled, save a GPX file as a course, list or look up their courses, rename a course or change its privacy, send a course to their watch, delete a course, list, look up or delete their PacePro pacing plans, create a PacePro plan from a course, rename a PacePro plan or change its goal time or pace, send a PacePro plan to their watch, or list their devices.
+description: Use when the user asks about their Garmin data — workouts (runs, rides), sleep or sleep score, weight, body fat, blood pressure, calories burned, resting heart rate, body battery, stress, training readiness, training status, training load, recovery time or HRV status — or asks to adjust a night's sleep times, log or delete a weigh-in, log or delete a blood pressure reading, add a manual activity, upload a FIT, GPX or TCX activity file, delete an activity, download an activity as a FIT or GPX file, find a workout in their workout library, create or change a structured running workout, create a strength workout with exercises, sets, reps and weights, look up a strength exercise name, delete a workout, put a workout on their calendar, take it off or see what is scheduled, save a GPX file as a course, list or look up their courses, rename a course or change its privacy, send a course to their watch, delete a course, list, look up or delete their PacePro pacing plans, create a PacePro plan from a course, rename a PacePro plan or change its goal time or pace, send a PacePro plan to their watch, or list their devices.
 ---
 
 # garmin
 
 `garmin` reads the user's Garmin Connect data and prints JSON. Run it with Bash.
-Nineteen commands change data: `garmin weight add`, `garmin weight delete`,
-`garmin bp delete`, `garmin sleep set`, `garmin activity add`,
+Twenty commands change data: `garmin weight add`, `garmin weight delete`,
+`garmin bp create`, `garmin bp delete`, `garmin sleep set`, `garmin activity add`,
 `garmin activity delete`, `garmin workout add`, `garmin workout edit`,
 `garmin workout delete`, `garmin workout schedule`, `garmin workout unschedule`,
 `garmin course create`, `garmin course send`, `garmin course edit`,
@@ -36,6 +36,7 @@ garmin weight --from DATE --to DATE    # weigh-ins with their id and body compos
 garmin weight add KG [--at "YYYY-MM-DD HH:MM"] [--unit lbs]  # log a weigh-in (default now, kg)
 garmin weight delete ID --date DATE [--dry-run]  # delete a weigh-in; id and date from `weight`
 garmin bp --from DATE --to DATE        # blood pressure readings with their id (both default today)
+garmin bp create SYSTOLIC DIASTOLIC [--pulse BPM] [--at "YYYY-MM-DD HH:MM"] [--notes TEXT]  # log a reading (default now)
 garmin bp delete ID --date DATE [--dry-run]  # delete a reading; id and date from `bp`
 garmin activities --limit 5 --type running --from DATE --to DATE  # newest first, default limit 20
 garmin activity ID                     # one activity with laps and HR zones; ID from `activities`
@@ -88,6 +89,9 @@ garmin device list                      # devices on the account: id, name, mode
   or weight instead of ID, look up its `id` with `garmin weight`, run
   `garmin weight delete ID --date DATE --dry-run`, and confirm the match with the
   user first.
+- `garmin bp create` writes to the user's Garmin account. Run it only with the values
+  the user gave you. After a failed run, check `garmin bp` before retrying, so the
+  reading is not logged twice.
 - `garmin bp delete` deletes without asking and cannot be undone. Run it only for a
   reading the user asked you to delete. Garmin cannot change a reading's values: to
   correct one, delete it and add it again. When the user names the reading by date

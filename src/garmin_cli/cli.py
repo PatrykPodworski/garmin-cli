@@ -22,6 +22,7 @@ from garmin_cli import (
     activity_add,
     activity_delete,
     auth,
+    bp_create,
     bp_delete,
     course_create,
     course_delete,
@@ -219,6 +220,7 @@ def build_parser() -> CliParser:
     weight_commands, bp_commands = health.register(subparsers)
     weight_add.register(weight_commands)
     weight_delete.register(weight_commands)
+    bp_create.register(bp_commands)
     bp_delete.register(bp_commands)
     sleep.register(subparsers)
     sleep_set.register(subparsers)

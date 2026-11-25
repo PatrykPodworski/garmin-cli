@@ -57,6 +57,17 @@ class GarminClient(Protocol):
 
     def get_blood_pressure(self, _start: str, _end: str, /) -> dict[str, Any]: ...
 
+    def set_blood_pressure(
+        self,
+        _systolic: int,
+        _diastolic: int,
+        /,
+        *,
+        pulse: int | None,
+        timestamp: str,
+        notes: str,
+    ) -> dict[str, Any]: ...
+
     def delete_blood_pressure(self, _version: str, _cdate: str, /) -> Any: ...
 
     def get_activities(
