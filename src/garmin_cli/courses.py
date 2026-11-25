@@ -1,8 +1,8 @@
 import argparse
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from typing import Any
 
-from garminconnect import GarminConnectNotFoundError
+from garminconnect import GarminConnectConnectionError, GarminConnectNotFoundError
 
 from garmin_cli.activities import positive_int
 from garmin_cli.client import Connect, GarminClient
@@ -58,6 +58,30 @@ def fetch_course(client: GarminClient, course_id: int) -> dict[str, Any]:
         raise GarminCliError(f"No course with ID {course_id}.", LIST_IDS) from None
 
 
+def course_plans(client: GarminClient, course_id: int) -> list[dict[str, Any]]:
+    """The PacePro plans made from the course, which Garmin deletes with it."""
+    return [
+        plan
+        for plan in client.get_pace_bands()
+        if (plan.get("paceBandSummary") or {}).get("courseId") == course_id
+    ]
+
+
+def course_write(course_id: int, call: Callable[[], Any]) -> Any:
+    try:
+        return call()
+    except GarminConnectConnectionError as error:
+        # For minutes after a course is saved, Garmin answers a delete or update
+        # with `API Error 429 - The course [<id>] is not yet ready to delete or
+        # update`, which `main` would report as a rate limit.
+        if "not yet ready" not in str(error):
+            raise
+        raise GarminCliError(
+            f"Garmin is still processing course {course_id} after a change.",
+            "Try again in a few minutes.",
+        ) from None
+
+
 def course_view(args: argparse.Namespace, connect: Connect) -> Any:
     client = connect()
     raw = fetch_course(client, args.id)
@@ -67,14 +91,14 @@ def course_view(args: argparse.Namespace, connect: Connect) -> Any:
 def register(
     subparsers: "argparse._SubParsersAction[argparse.ArgumentParser]",
 ) -> "argparse._SubParsersAction[argparse.ArgumentParser]":
-    """Returns the `course` commands, for the write modules to add `create` and
-    `send`."""
+    """Returns the `course` commands, for the write modules to add `create`,
+    `send` and `delete`."""
     course_parser = subparsers.add_parser(
         "course", help="courses: GPX routes the watch can follow"
     )
     # `CliParser.explain` names a missing command by this metavar.
     commands = course_parser.add_subparsers(
-        dest="subcommand", required=True, metavar="{list,view,create,send}"
+        dest="subcommand", required=True, metavar="{list,view,create,send,delete}"
     )
     list_parser = commands.add_parser(
         "list",

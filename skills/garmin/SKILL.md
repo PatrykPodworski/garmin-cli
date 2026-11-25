@@ -1,16 +1,17 @@
 ---
 name: garmin
-description: Use when the user asks about their Garmin data — workouts (runs, rides), sleep or sleep score, weight, body fat, blood pressure, calories burned, resting heart rate, body battery, stress, training readiness, training status, training load, recovery time or HRV status — or asks to adjust a night's sleep times, log or delete a weigh-in, add a manual activity, delete an activity, find a workout in their workout library, create or change a structured running workout, create a strength workout with exercises, sets, reps and weights, look up a strength exercise name, delete a workout, put a workout on their calendar, take it off or see what is scheduled, save a GPX file as a course, list or look up their courses, send a course to their watch, list, look up or delete their PacePro pacing plans, create a PacePro plan from a course, rename a PacePro plan or change its goal time or pace, send a PacePro plan to their watch, or list their devices.
+description: Use when the user asks about their Garmin data — workouts (runs, rides), sleep or sleep score, weight, body fat, blood pressure, calories burned, resting heart rate, body battery, stress, training readiness, training status, training load, recovery time or HRV status — or asks to adjust a night's sleep times, log or delete a weigh-in, add a manual activity, delete an activity, find a workout in their workout library, create or change a structured running workout, create a strength workout with exercises, sets, reps and weights, look up a strength exercise name, delete a workout, put a workout on their calendar, take it off or see what is scheduled, save a GPX file as a course, list or look up their courses, send a course to their watch, delete a course, list, look up or delete their PacePro pacing plans, create a PacePro plan from a course, rename a PacePro plan or change its goal time or pace, send a PacePro plan to their watch, or list their devices.
 ---
 
 # garmin
 
 `garmin` reads the user's Garmin Connect data and prints JSON. Run it with Bash.
-Sixteen commands change data: `garmin weight add`, `garmin weight delete`,
+Seventeen commands change data: `garmin weight add`, `garmin weight delete`,
 `garmin sleep set`, `garmin activity add`, `garmin activity delete`,
 `garmin workout add`, `garmin workout edit`, `garmin workout delete`,
 `garmin workout schedule`, `garmin workout unschedule`, `garmin course create`,
-`garmin course send`, `garmin pacepro create`, `garmin pacepro edit`,
+`garmin course send`, `garmin course delete`, `garmin pacepro create`,
+`garmin pacepro edit`,
 `garmin pacepro delete` and `garmin pacepro send`.
 
 ## Login
@@ -53,6 +54,7 @@ garmin course create --file GPX [--name NAME] [--type KEY] [--privacy private|pu
 garmin course list --limit 50           # saved courses, default limit 20
 garmin course view ID                   # one course: distance, elevation, type, privacy; ID from `course list`
 garmin course send ID --device DEVICE_ID  # queue a course for a watch; DEVICE_ID from `device list`
+garmin course delete ID [--dry-run]     # delete a course and its PacePro plans; ID from `course list`
 garmin pacepro list --limit 50          # PacePro plans: course, split mode, goal time and pace; default limit 20
 garmin pacepro view ID                  # one PacePro plan with each split's target pace; ID from `pacepro list`
 garmin pacepro create --course ID (--goal-time H:MM:SS | --goal-pace M:SS) [--name NAME] [--dry-run]  # compute a plan with km splits and the website's default sliders from a course and save it
@@ -122,6 +124,13 @@ garmin device list                      # devices on the account: id, name, mode
   matches, or the user named none, ask. Success means Garmin queued the course,
   not that it is on the watch: tell the user it arrives on the watch's next sync.
   Each run queues it again, so do not retry after success.
+- `garmin course delete` deletes without asking and cannot be undone; Garmin also
+  deletes the course's PacePro plans. Run it only for a course the user asked you
+  to delete. When the user names the course instead of giving its ID, look up the
+  ID with `garmin course list`. Run `garmin course delete ID --dry-run` first, and
+  confirm the match and the PacePro plans it names with the user. When Garmin is
+  still processing the course after a change, nothing was deleted: wait a few
+  minutes and retry.
 - `garmin pacepro create` writes a new plan to the user's Garmin account. Run it
   only for a course and goal the user gave. It always makes km splits with the
   website's default sliders; for elevation splits, miles or other slider values,
