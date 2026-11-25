@@ -10,8 +10,8 @@ Sixteen commands change data: `garmin weight add`, `garmin sleep set`,
 `garmin activity add`, `garmin activity delete`, `garmin workout add`,
 `garmin workout edit`, `garmin workout delete`, `garmin workout schedule`,
 `garmin workout unschedule`, `garmin course create`, `garmin course send`,
-`garmin course delete`, `garmin pacepro create`, `garmin pacepro edit`, `garmin pacepro delete` and
-`garmin pacepro send`.
+`garmin course delete`, `garmin pacepro create`, `garmin pacepro edit`,
+`garmin pacepro delete` and `garmin pacepro send`.
 
 ## Login
 

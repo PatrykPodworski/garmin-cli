@@ -44,7 +44,7 @@ def test_course_delete_deletes_without_asking(
         ([FAST, OTHER, HILLS], ' and its 2 PacePro plans "Fast 10k", "Hills 10k"'),
         (
             [{"paceBandPk": 504, "paceBandSummary": {"courseId": 111}}],
-            (" and its PacePro plan 504"),
+            " and its PacePro plan 504",
         ),
         (
             [HILLS, {"paceBandPk": 504, "paceBandSummary": {"courseId": 111}}],
